@@ -96,6 +96,7 @@ public class PaymentService {
         // Risk scoring
         int riskScore = riskScoringService.scorePayment(payment);
         payment.setRiskScore(riskScore);
+        paymentRepository.updateRiskScore(id, riskScore);
 
         return payment;
     }

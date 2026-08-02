@@ -10,6 +10,12 @@ public class Customer {
     public Customer() {
     }
 
+    public Customer(String name, String accountNumber, String country) {
+        this.name = name;
+        this.accountNumber = accountNumber;
+        this.country = country;
+    }
+
     public Customer(int id, String name, String accountNumber, String country) {
         this.id = id;
         this.name = name;
