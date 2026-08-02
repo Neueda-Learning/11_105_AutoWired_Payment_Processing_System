@@ -1,9 +1,8 @@
 package com.payment.server.repository;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.payment.server.model.ErrorCode;
@@ -11,31 +10,40 @@ import com.payment.server.model.ErrorCode;
 @Repository
 public class ErrorCodeRepository {
 
-    private final Map<String, ErrorCode> errorCodes = new LinkedHashMap<>();
+    private final JdbcTemplate jdbcTemplate;
 
-    public ErrorCodeRepository() {
-        add(new ErrorCode("VALIDATION_FAILED", "Payment failed validation checks", 400, "ERROR"));
-        add(new ErrorCode("INSUFFICIENT_FUNDS", "Source account has insufficient funds", 400, "ERROR"));
-        add(new ErrorCode("INVALID_ACCOUNT", "Account number is invalid or doesn't exist", 400, "ERROR"));
-        add(new ErrorCode("INVALID_CURRENCY", "Currency code is not supported", 400, "ERROR"));
-        add(new ErrorCode("INVALID_AMOUNT", "Amount is zero, negative, or invalid", 400, "ERROR"));
-        add(new ErrorCode("DUPLICATE_PAYMENT", "Payment with same idempotency key exists", 409, "WARN"));
-        add(new ErrorCode("INVALID_STATUS_TRANSITION", "Cannot transition from current status to requested status",
-                400, "ERROR"));
-        add(new ErrorCode("PAYMENT_NOT_FOUND", "Payment ID does not exist", 404, "ERROR"));
-        add(new ErrorCode("PROCESSING_ERROR", "Internal error during payment processing", 500, "ERROR"));
-        add(new ErrorCode("NETWORK_ERROR", "Communication failure with payment network", 503, "ERROR"));
+    public ErrorCodeRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    private void add(ErrorCode errorCode) {
-        errorCodes.put(errorCode.getCode(), errorCode);
+    private ErrorCode mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+        return new ErrorCode(
+                rs.getString("code"),
+                rs.getString("description"),
+                rs.getInt("http_status"),
+                rs.getString("severity"));
     }
 
     public List<ErrorCode> findAll() {
-        return List.copyOf(errorCodes.values());
+        String sql = "SELECT * FROM error_codes";
+        return jdbcTemplate.query(sql, this::mapRow);
     }
 
     public ErrorCode findByCode(String code) {
-        return errorCodes.get(code);
+        String sql = "SELECT * FROM error_codes WHERE code = ?";
+        List<ErrorCode> results = jdbcTemplate.query(sql, this::mapRow, code);
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    public long count() {
+        String sql = "SELECT COUNT(*) FROM error_codes";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class);
+        return count == null ? 0 : count;
+    }
+
+    public void save(ErrorCode errorCode) {
+        String sql = "INSERT INTO error_codes (code, description, http_status, severity) VALUES (?, ?, ?, ?)";
+        jdbcTemplate.update(sql, errorCode.getCode(), errorCode.getDescription(),
+                errorCode.getHttpStatus(), errorCode.getSeverity());
     }
 }

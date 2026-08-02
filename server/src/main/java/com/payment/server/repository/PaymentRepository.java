@@ -1,9 +1,12 @@
 package com.payment.server.repository;
 
-import java.util.ArrayList;
+import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import com.payment.server.model.Payment;
@@ -11,44 +14,90 @@ import com.payment.server.model.Payment;
 @Repository
 public class PaymentRepository {
 
-    private final List<Payment> payments = new ArrayList<>();
-    private final AtomicInteger idCounter = new AtomicInteger(0);
+    private final JdbcTemplate jdbcTemplate;
+
+    public PaymentRepository(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    private Payment mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+        Payment payment = new Payment();
+        payment.setId(rs.getInt("id"));
+        payment.setSourceAccount(rs.getString("source_account"));
+        payment.setDestinationAccount(rs.getString("destination_account"));
+        payment.setAmount(rs.getBigDecimal("amount"));
+        payment.setCurrency(rs.getString("currency"));
+        payment.setPaymentMethod(rs.getString("payment_method"));
+        payment.setStatus(rs.getString("status"));
+        payment.setRiskScore(rs.getInt("risk_score"));
+        payment.setReference(rs.getString("reference"));
+        java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
+        if (createdAt != null) {
+            payment.setCreatedAt(createdAt.toLocalDateTime());
+        }
+        java.sql.Timestamp updatedAt = rs.getTimestamp("updated_at");
+        if (updatedAt != null) {
+            payment.setUpdatedAt(updatedAt.toLocalDateTime());
+        }
+        return payment;
+    }
 
     public List<Payment> findAll() {
-        return new ArrayList<>(payments);
+        String sql = "SELECT * FROM payments";
+        return jdbcTemplate.query(sql, this::mapRow);
     }
 
     public Payment findById(int id) {
-        return payments.stream()
-                .filter(p -> p.getId() == id)
-                .findFirst()
-                .orElse(null);
+        String sql = "SELECT * FROM payments WHERE id = ?";
+        List<Payment> results = jdbcTemplate.query(sql, this::mapRow, id);
+        return results.isEmpty() ? null : results.get(0);
     }
 
     public List<Payment> findByStatus(String status) {
-        return payments.stream()
-                .filter(p -> p.getStatus().equalsIgnoreCase(status))
-                .toList();
+        String sql = "SELECT * FROM payments WHERE status = ?";
+        return jdbcTemplate.query(sql, this::mapRow, status);
     }
 
     public int save(Payment payment) {
-        int id = idCounter.incrementAndGet();
+        String sql = "INSERT INTO payments "
+                + "(source_account, destination_account, amount, currency, payment_method, status, risk_score, "
+                + "reference, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            java.sql.PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, payment.getSourceAccount());
+            ps.setString(2, payment.getDestinationAccount());
+            ps.setBigDecimal(3, payment.getAmount());
+            ps.setString(4, payment.getCurrency());
+            ps.setString(5, payment.getPaymentMethod());
+            ps.setString(6, payment.getStatus());
+            ps.setInt(7, payment.getRiskScore());
+            ps.setString(8, payment.getReference());
+            ps.setTimestamp(9, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
+            ps.setTimestamp(10, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
+            return ps;
+        }, keyHolder);
+
+        int id = keyHolder.getKey().intValue();
         payment.setId(id);
-        payments.add(payment);
         return id;
     }
 
     public void updateStatus(int id, String status) {
-        Payment payment = findById(id);
-        if (payment != null) {
-            payment.setStatus(status);
-        }
+        String sql = "UPDATE payments SET status = ?, updated_at = ? WHERE id = ?";
+        jdbcTemplate.update(sql, status, java.sql.Timestamp.valueOf(LocalDateTime.now()), id);
     }
 
-    public long countRecentByAccount(String sourceAccount, java.time.LocalDateTime since) {
-        return payments.stream()
-                .filter(p -> p.getSourceAccount().equalsIgnoreCase(sourceAccount))
-                .filter(p -> p.getCreatedAt() != null && p.getCreatedAt().isAfter(since))
-                .count();
+    public void updateRiskScore(int id, int riskScore) {
+        String sql = "UPDATE payments SET risk_score = ? WHERE id = ?";
+        jdbcTemplate.update(sql, riskScore, id);
+    }
+
+    public long countRecentByAccount(String sourceAccount, LocalDateTime since) {
+        String sql = "SELECT COUNT(*) FROM payments WHERE source_account = ? AND created_at > ?";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, sourceAccount, java.sql.Timestamp.valueOf(since));
+        return count == null ? 0 : count;
     }
 }
