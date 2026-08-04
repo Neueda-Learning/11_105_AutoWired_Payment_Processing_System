@@ -31,6 +31,10 @@ public class PaymentRepository {
         payment.setStatus(rs.getString("status"));
         payment.setRiskScore(rs.getInt("risk_score"));
         payment.setReference(rs.getString("reference"));
+        payment.setCardLast4(rs.getString("card_last4"));
+        payment.setCardExpiry(rs.getString("card_expiry"));
+        payment.setUpiId(rs.getString("upi_id"));
+        payment.setBankName(rs.getString("bank_name"));
         java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             payment.setCreatedAt(createdAt.toLocalDateTime());
@@ -61,8 +65,8 @@ public class PaymentRepository {
     public int save(Payment payment) {
         String sql = "INSERT INTO payments "
                 + "(source_account, destination_account, amount, currency, payment_method, status, risk_score, "
-                + "reference, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "reference, card_last4, card_expiry, upi_id, bank_name, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -75,8 +79,12 @@ public class PaymentRepository {
             ps.setString(6, payment.getStatus());
             ps.setInt(7, payment.getRiskScore());
             ps.setString(8, payment.getReference());
-            ps.setTimestamp(9, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
-            ps.setTimestamp(10, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
+            ps.setString(9, payment.getCardLast4());
+            ps.setString(10, payment.getCardExpiry());
+            ps.setString(11, payment.getUpiId());
+            ps.setString(12, payment.getBankName());
+            ps.setTimestamp(13, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
+            ps.setTimestamp(14, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
             return ps;
         }, keyHolder);
 

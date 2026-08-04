@@ -83,6 +83,27 @@ export default function PaymentDetails({ paymentId }: Props) {
                 <dd className="text-right text-slate-800">{payment.destinationAccount}</dd>
                 <dt className="text-slate-500">Method</dt>
                 <dd className="text-right text-slate-800">{payment.paymentMethod}</dd>
+                {payment.paymentMethod === 'UPI' && payment.upiId && (
+                    <>
+                        <dt className="text-slate-500">UPI ID</dt>
+                        <dd className="text-right text-slate-800">{payment.upiId}</dd>
+                    </>
+                )}
+                {payment.paymentMethod === 'NETBANKING' && payment.bankName && (
+                    <>
+                        <dt className="text-slate-500">Bank</dt>
+                        <dd className="text-right text-slate-800">{payment.bankName}</dd>
+                    </>
+                )}
+                {payment.paymentMethod === 'CREDIT_CARD' && payment.cardLast4 && (
+                    <>
+                        <dt className="text-slate-500">Card</dt>
+                        <dd className="text-right text-slate-800">
+                            •••• {payment.cardLast4}
+                            {payment.cardExpiry ? ` (exp ${payment.cardExpiry})` : ''}
+                        </dd>
+                    </>
+                )}
                 <dt className="text-slate-500">Reference</dt>
                 <dd className="text-right text-slate-800">{payment.reference || '—'}</dd>
                 <dt className="text-slate-500">Created</dt>
