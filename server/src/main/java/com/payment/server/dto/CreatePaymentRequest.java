@@ -29,6 +29,8 @@ public class CreatePaymentRequest {
 
     private String reference;
 
+    private String idempotencyKey;
+
     public String getSourceAccount() {
         return sourceAccount;
     }
@@ -75,5 +77,13 @@ public class CreatePaymentRequest {
 
     public void setReference(String reference) {
         this.reference = reference;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 }

@@ -8,6 +8,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.payment.server.exception.DuplicatePaymentException;
 import com.payment.server.exception.InvalidStatusTransitionException;
 import com.payment.server.exception.PaymentNotFoundException;
 import com.payment.server.exception.PaymentValidationException;
@@ -70,6 +71,15 @@ public class PaymentService {
 
     @Transactional
     public Payment createPayment(Payment payment) {
+        if (payment.getIdempotencyKey() != null && !payment.getIdempotencyKey().isBlank()) {
+            String idempotencyKey = payment.getIdempotencyKey().trim();
+            payment.setIdempotencyKey(idempotencyKey);
+            Payment existing = paymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing != null) {
+                throw new DuplicatePaymentException(existing.getId());
+            }
+        }
+
         LocalDateTime now = LocalDateTime.now();
         payment.setCreatedAt(now);
         payment.setUpdatedAt(now);

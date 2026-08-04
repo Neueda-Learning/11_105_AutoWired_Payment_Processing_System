@@ -14,6 +14,7 @@ public class Payment {
     private String status; // CREATED, VALIDATED, SENT, COMPLETED, FAILED
     private int riskScore;
     private String reference;
+    private String idempotencyKey;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -90,6 +91,14 @@ public class Payment {
 
     public void setReference(String reference) {
         this.reference = reference;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -31,6 +31,7 @@ public class PaymentRepository {
         payment.setStatus(rs.getString("status"));
         payment.setRiskScore(rs.getInt("risk_score"));
         payment.setReference(rs.getString("reference"));
+        payment.setIdempotencyKey(rs.getString("idempotency_key"));
         java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             payment.setCreatedAt(createdAt.toLocalDateTime());
@@ -58,25 +59,32 @@ public class PaymentRepository {
         return jdbcTemplate.query(sql, this::mapRow, status);
     }
 
+    public Payment findByIdempotencyKey(String key) {
+        String sql = "SELECT * FROM payments WHERE idempotency_key = ?";
+        List<Payment> results = jdbcTemplate.query(sql, this::mapRow, key);
+        return results.isEmpty() ? null : results.get(0);
+    }
+
     public int save(Payment payment) {
         String sql = "INSERT INTO payments "
-                + "(source_account, destination_account, amount, currency, payment_method, status, risk_score, "
-                + "reference, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "(source_account, destination_account, idempotency_key, amount, currency, payment_method, status, "
+                + "risk_score, reference, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             java.sql.PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, payment.getSourceAccount());
             ps.setString(2, payment.getDestinationAccount());
-            ps.setBigDecimal(3, payment.getAmount());
-            ps.setString(4, payment.getCurrency());
-            ps.setString(5, payment.getPaymentMethod());
-            ps.setString(6, payment.getStatus());
-            ps.setInt(7, payment.getRiskScore());
-            ps.setString(8, payment.getReference());
-            ps.setTimestamp(9, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
-            ps.setTimestamp(10, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
+            ps.setString(3, payment.getIdempotencyKey());
+            ps.setBigDecimal(4, payment.getAmount());
+            ps.setString(5, payment.getCurrency());
+            ps.setString(6, payment.getPaymentMethod());
+            ps.setString(7, payment.getStatus());
+            ps.setInt(8, payment.getRiskScore());
+            ps.setString(9, payment.getReference());
+            ps.setTimestamp(10, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
+            ps.setTimestamp(11, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
             return ps;
         }, keyHolder);
 

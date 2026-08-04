@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -20,6 +21,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.payment.server.exception.DuplicatePaymentException;
 import com.payment.server.exception.InvalidStatusTransitionException;
 import com.payment.server.exception.PaymentValidationException;
 import com.payment.server.model.Payment;
@@ -53,7 +55,7 @@ class PaymentServiceTest {
         });
         when(validationService.validate(any(Payment.class)))
                 .thenReturn(new PaymentValidationService.ValidationResult(true, List.of()));
-        when(riskScoringService.scorePayment(any(Payment.class))).thenReturn(65);
+        when(riskScoringService.scorePayment(any(Payment.class), anyInt())).thenReturn(65);
 
         Payment created = service.createPayment(payment);
 
@@ -87,8 +89,26 @@ class PaymentServiceTest {
         verify(paymentRepository).updateStatus(202, PaymentService.STATUS_FAILED);
         verify(historyRepository).save(202, PaymentService.STATUS_FAILED, PaymentService.STATUS_CREATED,
                 "Validation failed: Currency is not supported");
-        verify(riskScoringService, never()).scorePayment(any(Payment.class));
+        verify(riskScoringService, never()).scorePayment(any(Payment.class), anyInt());
         verify(paymentRepository, never()).updateRiskScore(eq(202), any(Integer.class));
+    }
+
+    @Test
+    void createPaymentWhenIdempotencyKeyAlreadyExistsThrowsDuplicatePaymentException() {
+        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService, riskScoringService);
+        Payment payment = buildPayment("SRC-100", "DST-200", "USD", "1000.00");
+        payment.setIdempotencyKey("idem-key-1");
+
+        Payment existing = new Payment();
+        existing.setId(345);
+        when(paymentRepository.findByIdempotencyKey("idem-key-1")).thenReturn(existing);
+
+        DuplicatePaymentException ex = assertThrows(DuplicatePaymentException.class,
+                () -> service.createPayment(payment));
+
+        assertEquals(345, ex.getExistingPaymentId());
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(historyRepository, never()).save(anyInt(), any(String.class), any(String.class), any(String.class));
     }
 
     @Test

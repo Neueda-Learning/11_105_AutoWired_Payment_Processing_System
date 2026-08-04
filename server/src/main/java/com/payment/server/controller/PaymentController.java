@@ -56,6 +56,7 @@ public class PaymentController {
         payment.setCurrency(request.getCurrency());
         payment.setPaymentMethod(request.getPaymentMethod());
         payment.setReference(request.getReference());
+        payment.setIdempotencyKey(request.getIdempotencyKey());
 
         Payment created = paymentService.createPayment(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
