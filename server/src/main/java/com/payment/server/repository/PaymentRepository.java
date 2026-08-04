@@ -100,4 +100,11 @@ public class PaymentRepository {
         Long count = jdbcTemplate.queryForObject(sql, Long.class, sourceAccount, java.sql.Timestamp.valueOf(since));
         return count == null ? 0 : count;
     }
+
+    public long countRecentByAccountExcludingPayment(String sourceAccount, LocalDateTime since, int excludedPaymentId) {
+        String sql = "SELECT COUNT(*) FROM payments WHERE source_account = ? AND created_at > ? AND id <> ?";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class,
+                sourceAccount, java.sql.Timestamp.valueOf(since), excludedPaymentId);
+        return count == null ? 0 : count;
+    }
 }

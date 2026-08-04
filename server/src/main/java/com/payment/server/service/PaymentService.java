@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.payment.server.exception.InvalidStatusTransitionException;
 import com.payment.server.exception.PaymentNotFoundException;
@@ -67,6 +68,7 @@ public class PaymentService {
         return historyRepository.findByPaymentId(id);
     }
 
+    @Transactional
     public Payment createPayment(Payment payment) {
         LocalDateTime now = LocalDateTime.now();
         payment.setCreatedAt(now);
@@ -94,7 +96,7 @@ public class PaymentService {
         historyRepository.save(id, STATUS_VALIDATED, STATUS_CREATED, "Payment passed validation");
 
         // Risk scoring
-        int riskScore = riskScoringService.scorePayment(payment);
+        int riskScore = riskScoringService.scorePayment(payment, id);
         payment.setRiskScore(riskScore);
         paymentRepository.updateRiskScore(id, riskScore);
 
