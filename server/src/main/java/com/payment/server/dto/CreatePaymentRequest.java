@@ -24,10 +24,26 @@ public class CreatePaymentRequest {
     private String currency;
 
     @NotBlank(message = "paymentMethod is required")
-    @Pattern(regexp = "UPI|NETBANKING", message = "paymentMethod must be UPI or NETBANKING")
+    @Pattern(regexp = "UPI|NETBANKING|CREDIT_CARD", message = "paymentMethod must be UPI, NETBANKING, or CREDIT_CARD")
     private String paymentMethod;
 
     private String reference;
+
+    private String idempotencyKey;
+
+    // Only required when paymentMethod == CREDIT_CARD. Never persisted in raw
+    // form - see PaymentValidationService and Payment model for masking.
+    private String cardNumber;
+
+    private String cardExpiry;
+
+    private String cardHolderName;
+
+    // Only required when paymentMethod == UPI.
+    private String upiId;
+
+    // Only required when paymentMethod == NETBANKING.
+    private String bankName;
 
     public String getSourceAccount() {
         return sourceAccount;
@@ -75,5 +91,53 @@ public class CreatePaymentRequest {
 
     public void setReference(String reference) {
         this.reference = reference;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getCardNumber() {
+        return cardNumber;
+    }
+
+    public void setCardNumber(String cardNumber) {
+        this.cardNumber = cardNumber;
+    }
+
+    public String getCardExpiry() {
+        return cardExpiry;
+    }
+
+    public void setCardExpiry(String cardExpiry) {
+        this.cardExpiry = cardExpiry;
+    }
+
+    public String getCardHolderName() {
+        return cardHolderName;
+    }
+
+    public void setCardHolderName(String cardHolderName) {
+        this.cardHolderName = cardHolderName;
+    }
+
+    public String getUpiId() {
+        return upiId;
+    }
+
+    public void setUpiId(String upiId) {
+        this.upiId = upiId;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
     }
 }

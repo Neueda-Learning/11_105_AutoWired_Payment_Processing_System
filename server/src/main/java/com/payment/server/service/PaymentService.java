@@ -8,6 +8,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.payment.server.exception.DuplicatePaymentException;
 import com.payment.server.exception.InvalidStatusTransitionException;
 import com.payment.server.exception.PaymentNotFoundException;
 import com.payment.server.exception.PaymentValidationException;
@@ -70,16 +71,31 @@ public class PaymentService {
 
     @Transactional
     public Payment createPayment(Payment payment) {
+        if (payment.getIdempotencyKey() != null && !payment.getIdempotencyKey().isBlank()) {
+            String idempotencyKey = payment.getIdempotencyKey().trim();
+            payment.setIdempotencyKey(idempotencyKey);
+            Payment existing = paymentRepository.findByIdempotencyKey(idempotencyKey);
+            if (existing != null) {
+                throw new DuplicatePaymentException(existing.getId());
+            }
+        }
+
         LocalDateTime now = LocalDateTime.now();
         payment.setCreatedAt(now);
         payment.setUpdatedAt(now);
         payment.setStatus(STATUS_CREATED);
 
         int id = paymentRepository.save(payment);
-        historyRepository.save(id, STATUS_CREATED, null, "Payment created");
+        historyRepository.save(id, STATUS_CREATED, null, "Payment created" + paymentMethodDetail(payment));
 
         // Run validation
         PaymentValidationService.ValidationResult result = validationService.validate(payment);
+
+        // Raw card details are only needed for validation - never persist or
+        // return them beyond this point (see Payment model for masked fields).
+        payment.setCardNumber(null);
+        payment.setCardHolderName(null);
+
         if (!result.isValid()) {
             payment.setStatus(STATUS_FAILED);
             payment.setUpdatedAt(LocalDateTime.now());
@@ -101,6 +117,19 @@ public class PaymentService {
         paymentRepository.updateRiskScore(id, riskScore);
 
         return payment;
+    }
+
+    private String paymentMethodDetail(Payment payment) {
+        if (payment.getPaymentMethod() == null) {
+            return "";
+        }
+        return switch (payment.getPaymentMethod()) {
+            case "UPI" -> payment.getUpiId() != null ? " (UPI ID: " + payment.getUpiId() + ")" : "";
+            case "NETBANKING" -> payment.getBankName() != null ? " (Bank: " + payment.getBankName() + ")" : "";
+            case "CREDIT_CARD" ->
+                payment.getCardLast4() != null ? " (Card ending in " + payment.getCardLast4() + ")" : "";
+            default -> "";
+        };
     }
 
     public Payment transitionStatus(int id, String newStatus, String notes) {

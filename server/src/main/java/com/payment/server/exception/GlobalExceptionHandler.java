@@ -34,6 +34,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(DuplicatePaymentException.class)
+    public ResponseEntity<Object> handleDuplicatePayment(DuplicatePaymentException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("errorCode", "DUPLICATE_PAYMENT");
+        body.put("message", ex.getMessage());
+        body.put("existingPaymentId", ex.getExistingPaymentId());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Object> handleBeanValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> body = new LinkedHashMap<>();
