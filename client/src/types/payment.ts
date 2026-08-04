@@ -5,7 +5,7 @@ export type PaymentStatus =
     | 'COMPLETED'
     | 'FAILED';
 
-export type PaymentMethod = 'UPI' | 'NETBANKING';
+export type PaymentMethod = 'UPI' | 'NETBANKING' | 'CREDIT_CARD';
 
 export interface Payment {
     id: number;
@@ -17,6 +17,10 @@ export interface Payment {
     status: PaymentStatus;
     riskScore: number;
     reference?: string;
+    cardLast4?: string;
+    cardExpiry?: string;
+    upiId?: string;
+    bankName?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -38,6 +42,11 @@ export interface CreatePaymentRequest {
     paymentMethod: PaymentMethod;
     reference?: string;
     idempotencyKey?: string;
+    cardNumber?: string;
+    cardExpiry?: string;
+    cardHolderName?: string;
+    upiId?: string;
+    bankName?: string;
 }
 
 export interface UpdateStatusRequest {

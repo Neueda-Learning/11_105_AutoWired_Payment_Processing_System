@@ -58,6 +58,22 @@ public class PaymentController {
         payment.setReference(request.getReference());
         payment.setIdempotencyKey(request.getIdempotencyKey());
 
+        if ("CREDIT_CARD".equals(request.getPaymentMethod())) {
+            payment.setCardNumber(request.getCardNumber());
+            payment.setCardHolderName(request.getCardHolderName());
+            payment.setCardExpiry(request.getCardExpiry());
+            if (request.getCardNumber() != null) {
+                String digitsOnly = request.getCardNumber().replaceAll("\\D", "");
+                if (digitsOnly.length() >= 4) {
+                    payment.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
+                }
+            }
+        } else if ("UPI".equals(request.getPaymentMethod())) {
+            payment.setUpiId(request.getUpiId());
+        } else if ("NETBANKING".equals(request.getPaymentMethod())) {
+            payment.setBankName(request.getBankName());
+        }
+
         Payment created = paymentService.createPayment(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }

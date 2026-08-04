@@ -9,11 +9,26 @@ import type {
 } from '../types/payment';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR'];
+const BANKS = [
+    'HDFC Bank',
+    'ICICI Bank',
+    'State Bank of India',
+    'Axis Bank',
+    'Kotak Mahindra Bank',
+    'Punjab National Bank',
+    'Bank of Baroda',
+    'Yes Bank',
+];
 
 function newIdempotencyKey() {
     return typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `key-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function maskCardNumber(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 19);
+    return digits.replace(/(.{4})/g, '$1 ').trim();
 }
 
 interface Props {
@@ -28,6 +43,11 @@ export default function PaymentForm({ onCreated }: Props) {
         currency: 'USD',
         paymentMethod: 'UPI',
         reference: '',
+        cardNumber: '',
+        cardExpiry: '',
+        cardHolderName: '',
+        upiId: '',
+        bankName: '',
         idempotencyKey: newIdempotencyKey(),
     });
 
@@ -175,6 +195,7 @@ export default function PaymentForm({ onCreated }: Props) {
                     >
                         <option value="UPI">UPI</option>
                         <option value="NETBANKING">NETBANKING</option>
+                        <option value="CREDIT_CARD">Credit Card</option>
                     </select>
                 </div>
                 <div>
@@ -189,6 +210,98 @@ export default function PaymentForm({ onCreated }: Props) {
                     />
                 </div>
             </div>
+
+            {form.paymentMethod === 'CREDIT_CARD' && (
+                <div className="mt-4 grid grid-cols-1 gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                            Card Number
+                        </label>
+                        <input
+                            required
+                            inputMode="numeric"
+                            autoComplete="cc-number"
+                            value={maskCardNumber(form.cardNumber ?? '')}
+                            onChange={(e) =>
+                                update(
+                                    'cardNumber',
+                                    e.target.value.replace(/\D/g, '').slice(0, 19),
+                                )
+                            }
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+                            placeholder="4242 4242 4242 4242"
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                            Expiry (MM/YYYY)
+                        </label>
+                        <input
+                            required
+                            autoComplete="cc-exp"
+                            value={form.cardExpiry ?? ''}
+                            onChange={(e) => update('cardExpiry', e.target.value)}
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+                            placeholder="12/2028"
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                            Card Holder Name
+                        </label>
+                        <input
+                            required
+                            autoComplete="cc-name"
+                            value={form.cardHolderName ?? ''}
+                            onChange={(e) => update('cardHolderName', e.target.value)}
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+                            placeholder="Jane Doe"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {form.paymentMethod === 'UPI' && (
+                <div className="mt-4 grid grid-cols-1 gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                            UPI ID
+                        </label>
+                        <input
+                            required
+                            value={form.upiId ?? ''}
+                            onChange={(e) => update('upiId', e.target.value)}
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+                            placeholder="name@upi"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {form.paymentMethod === 'NETBANKING' && (
+                <div className="mt-4 grid grid-cols-1 gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                            Bank
+                        </label>
+                        <select
+                            required
+                            value={form.bankName ?? ''}
+                            onChange={(e) => update('bankName', e.target.value)}
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+                        >
+                            <option value="" disabled>
+                                Select a bank
+                            </option>
+                            {BANKS.map((bank) => (
+                                <option key={bank} value={bank}>
+                                    {bank}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            )}
 
             <button
                 type="submit"
