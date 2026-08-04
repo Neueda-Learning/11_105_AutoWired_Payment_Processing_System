@@ -5,11 +5,15 @@ CREATE TABLE IF NOT EXISTS customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     account_number VARCHAR(50) NOT NULL UNIQUE,
-    country VARCHAR(10)
+    country VARCHAR(10),
+    role VARCHAR(20) DEFAULT 'USER',
+    own_upi_id VARCHAR(255),
+    own_bank_name VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
     source_account VARCHAR(50) NOT NULL,
     destination_account VARCHAR(50) NOT NULL,
     idempotency_key VARCHAR(100) UNIQUE,
@@ -28,9 +32,11 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 -- Note: CREATE TABLE IF NOT EXISTS does not add columns to a table that
--- already exists. For existing databases, the credit card columns are
--- added by SchemaMigrationRunner at startup (this MySQL version doesn't
--- support ALTER TABLE ... ADD COLUMN IF NOT EXISTS).
+-- already exists. For existing databases, the credit card columns as well as
+-- the user/role columns (customers.role, customers.own_upi_id,
+-- customers.own_bank_name, payments.user_id) are added by
+-- SchemaMigrationRunner at startup (this MySQL version doesn't support
+-- ALTER TABLE ... ADD COLUMN IF NOT EXISTS).
 
 CREATE TABLE IF NOT EXISTS payment_status_history (
     id INT AUTO_INCREMENT PRIMARY KEY,

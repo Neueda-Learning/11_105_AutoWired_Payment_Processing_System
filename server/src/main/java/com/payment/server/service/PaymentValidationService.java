@@ -69,11 +69,10 @@ public class PaymentValidationService {
             if (payment.getSourceAccount().equalsIgnoreCase(payment.getDestinationAccount())) {
                 errors.add("Source and destination accounts must be different");
             }
-            Customer source = customerRepository.findByAccountNumber(payment.getSourceAccount());
+            // Source account always belongs to the authenticated user (resolved
+            // server-side), so it's guaranteed to exist - only the destination
+            // needs to be looked up.
             Customer destination = customerRepository.findByAccountNumber(payment.getDestinationAccount());
-            if (source == null) {
-                errors.add("Source account is invalid or doesn't exist");
-            }
             if (destination == null) {
                 errors.add("Destination account is invalid or doesn't exist");
             }

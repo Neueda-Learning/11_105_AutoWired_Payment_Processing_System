@@ -9,14 +9,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.payment.server.dto.CreatePaymentRequest;
 import com.payment.server.dto.UpdateStatusRequest;
+import com.payment.server.exception.UserNotFoundException;
+import com.payment.server.model.Customer;
 import com.payment.server.model.Payment;
 import com.payment.server.model.PaymentStatusHistory;
+import com.payment.server.repository.CustomerRepository;
 import com.payment.server.service.PaymentService;
 
 import jakarta.validation.Valid;
@@ -26,15 +30,18 @@ import jakarta.validation.Valid;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final CustomerRepository customerRepository;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(PaymentService paymentService, CustomerRepository customerRepository) {
         this.paymentService = paymentService;
+        this.customerRepository = customerRepository;
     }
 
     @GetMapping
     public ResponseEntity<List<Payment>> getAllPayments(
+            @RequestHeader(value = "X-User-Id", required = false) Integer userId,
             @RequestParam(required = false) String status) {
-        return ResponseEntity.ok(paymentService.getAllPayments(status));
+        return ResponseEntity.ok(paymentService.getAllPayments(userId, status));
     }
 
     @GetMapping("/{id}")
@@ -48,9 +55,17 @@ public class PaymentController {
     }
 
     @PostMapping
-    public ResponseEntity<Payment> createPayment(@Valid @RequestBody CreatePaymentRequest request) {
+    public ResponseEntity<Payment> createPayment(
+            @RequestHeader("X-User-Id") int userId,
+            @Valid @RequestBody CreatePaymentRequest request) {
+        Customer currentUser = customerRepository.findById(userId);
+        if (currentUser == null) {
+            throw new UserNotFoundException(String.valueOf(userId));
+        }
+
         Payment payment = new Payment();
-        payment.setSourceAccount(request.getSourceAccount());
+        payment.setUserId(userId);
+        payment.setSourceAccount(currentUser.getAccountNumber());
         payment.setDestinationAccount(request.getDestinationAccount());
         payment.setAmount(request.getAmount());
         payment.setCurrency(request.getCurrency());
@@ -69,9 +84,9 @@ public class PaymentController {
                 }
             }
         } else if ("UPI".equals(request.getPaymentMethod())) {
-            payment.setUpiId(request.getUpiId());
+            payment.setUpiId(currentUser.getOwnUpiId());
         } else if ("NETBANKING".equals(request.getPaymentMethod())) {
-            payment.setBankName(request.getBankName());
+            payment.setBankName(currentUser.getOwnBankName());
         }
 
         Payment created = paymentService.createPayment(payment);

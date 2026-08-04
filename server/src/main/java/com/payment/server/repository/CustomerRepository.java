@@ -21,7 +21,10 @@ public class CustomerRepository {
                 rs.getInt("id"),
                 rs.getString("name"),
                 rs.getString("account_number"),
-                rs.getString("country"));
+                rs.getString("country"),
+                rs.getString("role"),
+                rs.getString("own_upi_id"),
+                rs.getString("own_bank_name"));
     }
 
     public List<Customer> findAll() {
@@ -48,7 +51,9 @@ public class CustomerRepository {
     }
 
     public void save(Customer customer) {
-        String sql = "INSERT INTO customers (name, account_number, country) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, customer.getName(), customer.getAccountNumber(), customer.getCountry());
+        String sql = "INSERT INTO customers (name, account_number, country, role, own_upi_id, own_bank_name) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
+        jdbcTemplate.update(sql, customer.getName(), customer.getAccountNumber(), customer.getCountry(),
+                customer.getRole(), customer.getOwnUpiId(), customer.getOwnBankName());
     }
 }

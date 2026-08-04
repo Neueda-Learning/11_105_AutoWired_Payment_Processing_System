@@ -48,11 +48,18 @@ public class PaymentService {
         this.riskScoringService = riskScoringService;
     }
 
-    public List<Payment> getAllPayments(String status) {
-        if (status == null || status.isBlank()) {
-            return paymentRepository.findAll();
+    public List<Payment> getAllPayments(Integer userId, String status) {
+        boolean hasStatus = status != null && !status.isBlank();
+        if (userId != null && hasStatus) {
+            return paymentRepository.findByUserIdAndStatus(userId, status);
         }
-        return paymentRepository.findByStatus(status);
+        if (userId != null) {
+            return paymentRepository.findByUserId(userId);
+        }
+        if (hasStatus) {
+            return paymentRepository.findByStatus(status);
+        }
+        return paymentRepository.findAll();
     }
 
     public Payment getPaymentById(int id) {

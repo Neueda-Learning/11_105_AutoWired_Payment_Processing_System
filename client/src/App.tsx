@@ -5,13 +5,19 @@ import PaymentForm from './components/PaymentForm';
 import PaymentList from './components/PaymentList';
 import PaymentDetails from './components/PaymentDetails';
 import StatsBar from './components/StatsBar';
+import LoginScreen from './components/LoginScreen';
 import ToastStack, { type ToastMessage } from './components/ToastStack';
 import { computeLocalStats } from './utils/stats';
+import { clearStoredUser, getStoredUser, setStoredUser } from './utils/currentUser';
 import type { Payment, PaymentStats, PaymentStatus } from './types/payment';
+import type { CurrentUser } from './types/user';
 
 const POLL_INTERVAL_MS = 8000;
 
 function App() {
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() =>
+    getStoredUser(),
+  );
   const [payments, setPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'ALL'>(
@@ -56,6 +62,7 @@ function App() {
   }, [statusFilter]);
 
   useEffect(() => {
+    if (!currentUser || currentUser.role !== 'USER') return;
     let cancelled = false;
 
     async function tick() {
@@ -68,7 +75,20 @@ function App() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [loadPayments]);
+  }, [loadPayments, currentUser]);
+
+  function handleLoggedIn(user: CurrentUser) {
+    setStoredUser(user);
+    setCurrentUser(user);
+  }
+
+  function handleLogout() {
+    clearStoredUser();
+    setCurrentUser(null);
+    setPayments([]);
+    setStats(null);
+    setSelectedId(null);
+  }
 
   function handleCreated(payment: Payment, wasDuplicate: boolean) {
     setPayments((prev) => {
@@ -85,6 +105,10 @@ function App() {
         ? `Duplicate detected — showing existing payment #${payment.id}.`
         : `Payment #${payment.id} created successfully.`,
     );
+  }
+
+  if (!currentUser) {
+    return <LoginScreen onLoggedIn={handleLoggedIn} />;
   }
 
   return (
@@ -106,58 +130,82 @@ function App() {
                 audit trail — live-refreshed every 8 seconds.
               </p>
             </div>
-            <div className="flex items-center gap-2 self-start rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-indigo-50 sm:self-auto">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              Live
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-indigo-50">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                Live
+              </div>
+              <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-indigo-50">
+                <span>
+                  {currentUser.name} ({currentUser.accountNumber})
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-full bg-white/20 px-2 py-0.5 font-semibold transition hover:bg-white/30"
+                >
+                  Switch user
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        {loadError && (
-          <p className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            {loadError}
-          </p>
-        )}
-
-        {stats && (
-          <div className="mb-6">
-            <StatsBar stats={stats} />
+        {currentUser.role === 'ADMIN' ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center text-sm text-slate-400 shadow-sm">
+            The admin dashboard is coming in a later phase. Switch to a
+            regular user account to create and track payments.
           </div>
-        )}
+        ) : (
+          <>
+            {loadError && (
+              <p className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {loadError}
+              </p>
+            )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <PaymentForm onCreated={handleCreated} />
-          </div>
-
-          <div className="lg:col-span-1">
-            <PaymentList
-              payments={payments}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              search={search}
-              onSearchChange={setSearch}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              loading={loading}
-            />
-          </div>
-
-          <div className="lg:col-span-1">
-            {selectedId ? (
-              <PaymentDetails paymentId={selectedId} />
-            ) : (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center text-sm text-slate-400 shadow-sm">
-                Select a payment to view its details and history.
+            {stats && (
+              <div className="mb-6">
+                <StatsBar stats={stats} />
               </div>
             )}
-          </div>
-        </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-1">
+                <PaymentForm currentUser={currentUser} onCreated={handleCreated} />
+              </div>
+
+              <div className="lg:col-span-1">
+                <PaymentList
+                  payments={payments}
+                  statusFilter={statusFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  search={search}
+                  onSearchChange={setSearch}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  loading={loading}
+                />
+              </div>
+
+              <div className="lg:col-span-1">
+                {selectedId ? (
+                  <PaymentDetails paymentId={selectedId} />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center text-sm text-slate-400 shadow-sm">
+                    Select a payment to view its details and history.
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
 }
 
 export default App;
+

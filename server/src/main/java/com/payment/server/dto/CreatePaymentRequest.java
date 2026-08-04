@@ -9,9 +9,6 @@ import jakarta.validation.constraints.Pattern;
 
 public class CreatePaymentRequest {
 
-    @NotBlank(message = "sourceAccount is required")
-    private String sourceAccount;
-
     @NotBlank(message = "destinationAccount is required")
     private String destinationAccount;
 
@@ -38,20 +35,6 @@ public class CreatePaymentRequest {
     private String cardExpiry;
 
     private String cardHolderName;
-
-    // Only required when paymentMethod == UPI.
-    private String upiId;
-
-    // Only required when paymentMethod == NETBANKING.
-    private String bankName;
-
-    public String getSourceAccount() {
-        return sourceAccount;
-    }
-
-    public void setSourceAccount(String sourceAccount) {
-        this.sourceAccount = sourceAccount;
-    }
 
     public String getDestinationAccount() {
         return destinationAccount;
@@ -123,21 +106,5 @@ public class CreatePaymentRequest {
 
     public void setCardHolderName(String cardHolderName) {
         this.cardHolderName = cardHolderName;
-    }
-
-    public String getUpiId() {
-        return upiId;
-    }
-
-    public void setUpiId(String upiId) {
-        this.upiId = upiId;
-    }
-
-    public String getBankName() {
-        return bankName;
-    }
-
-    public void setBankName(String bankName) {
-        this.bankName = bankName;
     }
 }

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class Payment {
 
     private int id;
+    private Integer userId;
     private String sourceAccount;
     private String destinationAccount;
     private BigDecimal amount;
@@ -44,6 +45,14 @@ public class Payment {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 
     public String getSourceAccount() {

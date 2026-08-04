@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AxiosError } from 'axios';
 import { paymentsApi } from '../api/paymentsApi';
+import type { CurrentUser } from '../types/user';
 import type {
     ApiErrorResponse,
     CreatePaymentRequest,
@@ -9,16 +10,6 @@ import type {
 } from '../types/payment';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR'];
-const BANKS = [
-    'HDFC Bank',
-    'ICICI Bank',
-    'State Bank of India',
-    'Axis Bank',
-    'Kotak Mahindra Bank',
-    'Punjab National Bank',
-    'Bank of Baroda',
-    'Yes Bank',
-];
 
 function newIdempotencyKey() {
     return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -32,12 +23,12 @@ function maskCardNumber(value: string) {
 }
 
 interface Props {
+    currentUser: CurrentUser;
     onCreated: (payment: Payment, wasDuplicate: boolean) => void;
 }
 
-export default function PaymentForm({ onCreated }: Props) {
+export default function PaymentForm({ currentUser, onCreated }: Props) {
     const emptyForm = (): CreatePaymentRequest => ({
-        sourceAccount: '',
         destinationAccount: '',
         amount: 0,
         currency: 'USD',
@@ -46,8 +37,6 @@ export default function PaymentForm({ onCreated }: Props) {
         cardNumber: '',
         cardExpiry: '',
         cardHolderName: '',
-        upiId: '',
-        bankName: '',
         idempotencyKey: newIdempotencyKey(),
     });
 
@@ -117,6 +106,11 @@ export default function PaymentForm({ onCreated }: Props) {
                 </span>
             </div>
 
+            <div className="mb-4 rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+                Paying as <span className="font-semibold">{currentUser.name}</span>{' '}
+                ({currentUser.accountNumber})
+            </div>
+
             {errors.length > 0 && (
                 <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                     <ul className="list-inside list-disc">
@@ -128,19 +122,7 @@ export default function PaymentForm({ onCreated }: Props) {
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-600">
-                        Source Account
-                    </label>
-                    <input
-                        required
-                        value={form.sourceAccount}
-                        onChange={(e) => update('sourceAccount', e.target.value)}
-                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
-                        placeholder="ACC-1001"
-                    />
-                </div>
-                <div>
+                <div className="sm:col-span-2">
                     <label className="mb-1 block text-sm font-medium text-slate-600">
                         Destination Account
                     </label>
@@ -262,44 +244,20 @@ export default function PaymentForm({ onCreated }: Props) {
             )}
 
             {form.paymentMethod === 'UPI' && (
-                <div className="mt-4 grid grid-cols-1 gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-600">
-                            UPI ID
-                        </label>
-                        <input
-                            required
-                            value={form.upiId ?? ''}
-                            onChange={(e) => update('upiId', e.target.value)}
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
-                            placeholder="name@upi"
-                        />
-                    </div>
+                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Sending from your own UPI ID:{' '}
+                    <span className="font-medium text-slate-800">
+                        {currentUser.ownUpiId ?? 'not set on your profile'}
+                    </span>
                 </div>
             )}
 
             {form.paymentMethod === 'NETBANKING' && (
-                <div className="mt-4 grid grid-cols-1 gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-600">
-                            Bank
-                        </label>
-                        <select
-                            required
-                            value={form.bankName ?? ''}
-                            onChange={(e) => update('bankName', e.target.value)}
-                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
-                        >
-                            <option value="" disabled>
-                                Select a bank
-                            </option>
-                            {BANKS.map((bank) => (
-                                <option key={bank} value={bank}>
-                                    {bank}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Sending from your own bank:{' '}
+                    <span className="font-medium text-slate-800">
+                        {currentUser.ownBankName ?? 'not set on your profile'}
+                    </span>
                 </div>
             )}
 

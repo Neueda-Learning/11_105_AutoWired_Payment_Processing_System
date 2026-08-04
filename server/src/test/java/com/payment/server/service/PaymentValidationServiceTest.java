@@ -29,8 +29,8 @@ class PaymentValidationServiceTest {
     void validateReturnsValidForSupportedCurrencyDifferentAccountsAndKnownCustomers() {
         PaymentValidationService service = new PaymentValidationService(customerRepository);
         Payment payment = buildPayment("ACC-111", "ACC-222", "usd", "2500.00");
+        payment.setUpiId("alice@bank");
 
-        when(customerRepository.findByAccountNumber("ACC-111")).thenReturn(new Customer("Alice", "ACC-111", "IN"));
         when(customerRepository.findByAccountNumber("ACC-222")).thenReturn(new Customer("Bob", "ACC-222", "IN"));
 
         PaymentValidationService.ValidationResult result = service.validate(payment);
@@ -52,7 +52,6 @@ class PaymentValidationServiceTest {
         assertTrue(result.getErrors().contains("Amount must be greater than 0"));
         assertTrue(result.getErrors().contains("Currency is not supported"));
         assertTrue(result.getErrors().contains("Source and destination accounts must be different"));
-        assertTrue(result.getErrors().contains("Source account is invalid or doesn't exist"));
         assertTrue(result.getErrors().contains("Destination account is invalid or doesn't exist"));
     }
 

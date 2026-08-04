@@ -35,7 +35,6 @@ export interface PaymentStatusHistory {
 }
 
 export interface CreatePaymentRequest {
-    sourceAccount: string;
     destinationAccount: string;
     amount: number;
     currency: string;
@@ -45,8 +44,6 @@ export interface CreatePaymentRequest {
     cardNumber?: string;
     cardExpiry?: string;
     cardHolderName?: string;
-    upiId?: string;
-    bankName?: string;
 }
 
 export interface UpdateStatusRequest {
