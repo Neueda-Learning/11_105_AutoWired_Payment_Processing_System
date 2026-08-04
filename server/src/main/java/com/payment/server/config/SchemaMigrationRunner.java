@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Adds columns to existing tables that schema.sql's
- * {@code CREATE TABLE IF NOT EXISTS} cannot add once a table already exists.
+ * {@code CREATE TABLE IF NOT EXISTS} cannot add once a table already exists
+ * (e.g. idempotency_key, and the credit card / UPI / net banking columns).
  * Uses information_schema checks + plain ALTER TABLE (no
  * {@code IF NOT EXISTS} clause) for compatibility with older MySQL versions
  * that don't support it on ADD COLUMN.
@@ -25,6 +26,7 @@ public class SchemaMigrationRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        addColumnIfMissing("payments", "idempotency_key", "VARCHAR(100) UNIQUE");
         addColumnIfMissing("payments", "card_last4", "VARCHAR(4)");
         addColumnIfMissing("payments", "card_expiry", "VARCHAR(7)");
         addColumnIfMissing("payments", "upi_id", "VARCHAR(255)");
