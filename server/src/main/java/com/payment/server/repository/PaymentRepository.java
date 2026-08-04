@@ -31,6 +31,7 @@ public class PaymentRepository {
         payment.setStatus(rs.getString("status"));
         payment.setRiskScore(rs.getInt("risk_score"));
         payment.setReference(rs.getString("reference"));
+        payment.setIdempotencyKey(rs.getString("idempotency_key"));
         payment.setCardLast4(rs.getString("card_last4"));
         payment.setCardExpiry(rs.getString("card_expiry"));
         payment.setUpiId(rs.getString("upi_id"));
@@ -62,11 +63,17 @@ public class PaymentRepository {
         return jdbcTemplate.query(sql, this::mapRow, status);
     }
 
+    public Payment findByIdempotencyKey(String key) {
+        String sql = "SELECT * FROM payments WHERE idempotency_key = ?";
+        List<Payment> results = jdbcTemplate.query(sql, this::mapRow, key);
+        return results.isEmpty() ? null : results.get(0);
+    }
+
     public int save(Payment payment) {
         String sql = "INSERT INTO payments "
-                + "(source_account, destination_account, amount, currency, payment_method, status, risk_score, "
-                + "reference, card_last4, card_expiry, upi_id, bank_name, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "(source_account, destination_account, idempotency_key, amount, currency, payment_method, status, "
+                + "risk_score, reference, card_last4, card_expiry, upi_id, bank_name, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -79,6 +86,7 @@ public class PaymentRepository {
             ps.setString(6, payment.getStatus());
             ps.setInt(7, payment.getRiskScore());
             ps.setString(8, payment.getReference());
+            ps.setString(3, payment.getIdempotencyKey());
             ps.setString(9, payment.getCardLast4());
             ps.setString(10, payment.getCardExpiry());
             ps.setString(11, payment.getUpiId());
@@ -106,6 +114,13 @@ public class PaymentRepository {
     public long countRecentByAccount(String sourceAccount, LocalDateTime since) {
         String sql = "SELECT COUNT(*) FROM payments WHERE source_account = ? AND created_at > ?";
         Long count = jdbcTemplate.queryForObject(sql, Long.class, sourceAccount, java.sql.Timestamp.valueOf(since));
+        return count == null ? 0 : count;
+    }
+
+    public long countRecentByAccountExcludingPayment(String sourceAccount, LocalDateTime since, int excludedPaymentId) {
+        String sql = "SELECT COUNT(*) FROM payments WHERE source_account = ? AND created_at > ? AND id <> ?";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class,
+                sourceAccount, java.sql.Timestamp.valueOf(since), excludedPaymentId);
         return count == null ? 0 : count;
     }
 }

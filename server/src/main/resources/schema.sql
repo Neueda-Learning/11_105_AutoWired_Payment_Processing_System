@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     source_account VARCHAR(50) NOT NULL,
     destination_account VARCHAR(50) NOT NULL,
+    idempotency_key VARCHAR(100) UNIQUE,
     amount DECIMAL(19, 2) NOT NULL,
     currency VARCHAR(10),
     payment_method VARCHAR(50),

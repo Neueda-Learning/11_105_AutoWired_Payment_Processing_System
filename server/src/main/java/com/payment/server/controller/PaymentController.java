@@ -56,6 +56,7 @@ public class PaymentController {
         payment.setCurrency(request.getCurrency());
         payment.setPaymentMethod(request.getPaymentMethod());
         payment.setReference(request.getReference());
+        payment.setIdempotencyKey(request.getIdempotencyKey());
 
         if ("CREDIT_CARD".equals(request.getPaymentMethod())) {
             payment.setCardNumber(request.getCardNumber());

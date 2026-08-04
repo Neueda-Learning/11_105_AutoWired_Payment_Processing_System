@@ -29,6 +29,8 @@ public class CreatePaymentRequest {
 
     private String reference;
 
+    private String idempotencyKey;
+
     // Only required when paymentMethod == CREDIT_CARD. Never persisted in raw
     // form - see PaymentValidationService and Payment model for masking.
     private String cardNumber;
@@ -89,6 +91,14 @@ public class CreatePaymentRequest {
 
     public void setReference(String reference) {
         this.reference = reference;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public String getCardNumber() {

@@ -23,7 +23,7 @@ public class RiskScoringService {
         this.paymentRepository = paymentRepository;
     }
 
-    public int scorePayment(Payment payment) {
+    public int scorePayment(Payment payment, int currentPaymentId) {
         int score = 0;
 
         // High amount rule
@@ -39,7 +39,8 @@ public class RiskScoringService {
 
         // Velocity rule - recent transaction count from same source account
         LocalDateTime since = LocalDateTime.now().minusMinutes(VELOCITY_WINDOW_MINUTES);
-        long recentCount = paymentRepository.countRecentByAccount(payment.getSourceAccount(), since);
+        long recentCount = paymentRepository.countRecentByAccountExcludingPayment(
+            payment.getSourceAccount(), since, currentPaymentId);
         if (recentCount >= VELOCITY_THRESHOLD) {
             score += 40;
         }
