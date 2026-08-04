@@ -38,6 +38,7 @@ public class PaymentRepository {
         payment.setCardExpiry(rs.getString("card_expiry"));
         payment.setUpiId(rs.getString("upi_id"));
         payment.setBankName(rs.getString("bank_name"));
+        payment.setProcessingFee(rs.getBigDecimal("processing_fee"));
         java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             payment.setCreatedAt(createdAt.toLocalDateTime());
@@ -84,8 +85,8 @@ public class PaymentRepository {
     public int save(Payment payment) {
         String sql = "INSERT INTO payments "
                 + "(user_id, source_account, destination_account, idempotency_key, amount, currency, payment_method, "
-                + "status, risk_score, reference, card_last4, card_expiry, upi_id, bank_name, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "status, risk_score, reference, card_last4, card_expiry, upi_id, bank_name, processing_fee, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -108,8 +109,9 @@ public class PaymentRepository {
             ps.setString(12, payment.getCardExpiry());
             ps.setString(13, payment.getUpiId());
             ps.setString(14, payment.getBankName());
-            ps.setTimestamp(15, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
-            ps.setTimestamp(16, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
+            ps.setBigDecimal(15, payment.getProcessingFee());
+            ps.setTimestamp(16, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
+            ps.setTimestamp(17, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
@@ -126,6 +128,22 @@ public class PaymentRepository {
     public void updateRiskScore(int id, int riskScore) {
         String sql = "UPDATE payments SET risk_score = ? WHERE id = ?";
         jdbcTemplate.update(sql, riskScore, id);
+    }
+
+    public long countAll() {
+        String sql = "SELECT COUNT(*) FROM payments";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class);
+        return count == null ? 0 : count;
+    }
+
+    public java.math.BigDecimal sumAmountAll() {
+        String sql = "SELECT COALESCE(SUM(amount), 0) FROM payments";
+        return jdbcTemplate.queryForObject(sql, java.math.BigDecimal.class);
+    }
+
+    public java.math.BigDecimal sumFeeByStatus(String status) {
+        String sql = "SELECT COALESCE(SUM(processing_fee), 0) FROM payments WHERE status = ?";
+        return jdbcTemplate.queryForObject(sql, java.math.BigDecimal.class, status);
     }
 
     public long countRecentByAccount(String sourceAccount, LocalDateTime since) {

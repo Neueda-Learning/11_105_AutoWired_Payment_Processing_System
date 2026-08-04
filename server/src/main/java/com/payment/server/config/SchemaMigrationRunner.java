@@ -32,6 +32,7 @@ public class SchemaMigrationRunner implements CommandLineRunner {
         addColumnIfMissing("payments", "upi_id", "VARCHAR(255)");
         addColumnIfMissing("payments", "bank_name", "VARCHAR(100)");
         addColumnIfMissing("payments", "user_id", "INT");
+        addColumnIfMissing("payments", "processing_fee", "DECIMAL(19, 2) DEFAULT 0");
         addColumnIfMissing("customers", "role", "VARCHAR(20) DEFAULT 'USER'");
         addColumnIfMissing("customers", "own_upi_id", "VARCHAR(255)");
         addColumnIfMissing("customers", "own_bank_name", "VARCHAR(100)");

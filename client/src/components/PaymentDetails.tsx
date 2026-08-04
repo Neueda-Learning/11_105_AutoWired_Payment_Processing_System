@@ -77,6 +77,22 @@ export default function PaymentDetails({ paymentId }: Props) {
                 <dd className="text-right font-medium text-slate-800">
                     {payment.amount.toFixed(2)} {payment.currency}
                 </dd>
+                {payment.processingFee != null && (
+                    <>
+                        <dt className="text-slate-500">Processing Fee (0.2%)</dt>
+                        <dd className="text-right text-slate-800">
+                            {payment.processingFee.toFixed(2)} {payment.currency}
+                        </dd>
+                    </>
+                )}
+                {payment.totalDebit != null && (
+                    <>
+                        <dt className="text-slate-500">Total Debit</dt>
+                        <dd className="text-right font-medium text-slate-800">
+                            {payment.totalDebit.toFixed(2)} {payment.currency}
+                        </dd>
+                    </>
+                )}
                 <dt className="text-slate-500">Source</dt>
                 <dd className="text-right text-slate-800">{payment.sourceAccount}</dd>
                 <dt className="text-slate-500">Destination</dt>

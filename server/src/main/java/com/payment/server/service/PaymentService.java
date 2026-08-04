@@ -1,5 +1,7 @@
 package com.payment.server.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +10,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.payment.server.dto.AdminStatsResponse;
 import com.payment.server.exception.DuplicatePaymentException;
 import com.payment.server.exception.InvalidStatusTransitionException;
 import com.payment.server.exception.PaymentNotFoundException;
@@ -25,6 +28,11 @@ public class PaymentService {
     public static final String STATUS_SENT = "SENT";
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_FAILED = "FAILED";
+
+    // 0.2% processing fee, charged on top of the payment amount. Snapshotted onto
+    // the payment at creation time so historical payments keep the rate that
+    // applied when they were made, even if this constant changes later.
+    public static final BigDecimal PROCESSING_FEE_RATE = new BigDecimal("0.002");
 
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
             STATUS_CREATED, Set.of(STATUS_VALIDATED, STATUS_FAILED),
@@ -62,6 +70,19 @@ public class PaymentService {
         return paymentRepository.findAll();
     }
 
+    /**
+     * Platform-wide figures for the admin dashboard: total payment volume and
+     * count across every user, plus the admin's earnings from the processing
+     * fee (only counted for payments that reached COMPLETED - a FAILED payment
+     * never generated real fee revenue).
+     */
+    public AdminStatsResponse getAdminStats() {
+        long totalPaymentCount = paymentRepository.countAll();
+        BigDecimal totalVolume = paymentRepository.sumAmountAll();
+        BigDecimal totalFeeEarnings = paymentRepository.sumFeeByStatus(STATUS_COMPLETED);
+        return new AdminStatsResponse(totalPaymentCount, totalVolume, totalFeeEarnings);
+    }
+
     public Payment getPaymentById(int id) {
         Payment payment = paymentRepository.findById(id);
         if (payment == null) {
@@ -91,6 +112,10 @@ public class PaymentService {
         payment.setCreatedAt(now);
         payment.setUpdatedAt(now);
         payment.setStatus(STATUS_CREATED);
+
+        if (payment.getAmount() != null) {
+            payment.setProcessingFee(payment.getAmount().multiply(PROCESSING_FEE_RATE).setScale(2, RoundingMode.HALF_UP));
+        }
 
         int id = paymentRepository.save(payment);
         historyRepository.save(id, STATUS_CREATED, null, "Payment created" + paymentMethodDetail(payment));

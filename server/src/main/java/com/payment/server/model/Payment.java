@@ -36,6 +36,10 @@ public class Payment {
     // Net banking bank name - safe to persist and return.
     private String bankName;
 
+    // Processing fee (0.2% of amount), snapshotted at creation time so it stays
+    // stable even if the fee rate changes later. Safe to persist and return.
+    private java.math.BigDecimal processingFee;
+
     public Payment() {
     }
 
@@ -191,5 +195,22 @@ public class Payment {
 
     public void setBankName(String bankName) {
         this.bankName = bankName;
+    }
+
+    public java.math.BigDecimal getProcessingFee() {
+        return processingFee;
+    }
+
+    public void setProcessingFee(java.math.BigDecimal processingFee) {
+        this.processingFee = processingFee;
+    }
+
+    // Derived/computed field (not persisted directly) - total amount debited from
+    // the sender, i.e. the payment amount plus the processing fee.
+    public java.math.BigDecimal getTotalDebit() {
+        if (amount == null) {
+            return null;
+        }
+        return processingFee == null ? amount : amount.add(processingFee);
     }
 }

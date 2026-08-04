@@ -21,6 +21,8 @@ export interface Payment {
     cardExpiry?: string;
     upiId?: string;
     bankName?: string;
+    processingFee?: number;
+    totalDebit?: number;
     createdAt: string;
     updatedAt: string;
 }

@@ -23,6 +23,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", ex.getMessage());
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Object> handleForbidden(ForbiddenException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", ex.getMessage());
+    }
+
     @ExceptionHandler(InvalidStatusTransitionException.class)
     public ResponseEntity<Object> handleInvalidTransition(InvalidStatusTransitionException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, "INVALID_STATUS_TRANSITION", ex.getMessage());

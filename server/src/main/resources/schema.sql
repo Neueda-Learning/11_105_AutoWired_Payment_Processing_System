@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS payments (
     card_expiry VARCHAR(7),
     upi_id VARCHAR(255),
     bank_name VARCHAR(100),
+    processing_fee DECIMAL(19, 2) DEFAULT 0,
     created_at DATETIME,
     updated_at DATETIME
 );

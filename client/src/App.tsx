@@ -6,6 +6,7 @@ import PaymentList from './components/PaymentList';
 import PaymentDetails from './components/PaymentDetails';
 import StatsBar from './components/StatsBar';
 import LoginScreen from './components/LoginScreen';
+import AdminDashboard from './components/AdminDashboard';
 import ToastStack, { type ToastMessage } from './components/ToastStack';
 import { computeLocalStats } from './utils/stats';
 import { clearStoredUser, getStoredUser, setStoredUser } from './utils/currentUser';
@@ -154,10 +155,7 @@ function App() {
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {currentUser.role === 'ADMIN' ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-8 text-center text-sm text-slate-400 shadow-sm">
-            The admin dashboard is coming in a later phase. Switch to a
-            regular user account to create and track payments.
-          </div>
+          <AdminDashboard />
         ) : (
           <>
             {loadError && (

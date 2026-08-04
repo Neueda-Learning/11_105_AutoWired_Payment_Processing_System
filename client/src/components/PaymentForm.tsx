@@ -11,6 +11,9 @@ import type {
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR'];
 
+// Must match PaymentService.PROCESSING_FEE_RATE on the server (0.2%).
+const PROCESSING_FEE_RATE = 0.002;
+
 function newIdempotencyKey() {
     return typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
@@ -192,6 +195,24 @@ export default function PaymentForm({ currentUser, onCreated }: Props) {
                     />
                 </div>
             </div>
+
+            {form.amount > 0 && (
+                <div className="mt-4 flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    <span>
+                        Processing fee (0.2%):{' '}
+                        <span className="font-medium text-slate-800">
+                            {(form.amount * PROCESSING_FEE_RATE).toFixed(2)} {form.currency}
+                        </span>
+                    </span>
+                    <span>
+                        Total debit:{' '}
+                        <span className="font-semibold text-slate-800">
+                            {(form.amount + form.amount * PROCESSING_FEE_RATE).toFixed(2)}{' '}
+                            {form.currency}
+                        </span>
+                    </span>
+                </div>
+            )}
 
             {form.paymentMethod === 'CREDIT_CARD' && (
                 <div className="mt-4 grid grid-cols-1 gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
