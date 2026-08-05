@@ -18,8 +18,11 @@ public class UpdatePaymentMethodRequest {
     // recomputed and stored.
     private String cardNumber;
 
-    // Only used when the method's type == CARD.
-    @Pattern(regexp = "(0[1-9]|1[0-2])/[0-9]{4}", message = "cardExpiry must be in MM/YYYY format")
+    // Only used when the method's type == CARD. Blank is allowed here (and
+    // rejected for CARD methods in UserService) so that UPI/NETBANKING edits
+    // - which send an empty string for this field - don't fail bean
+    // validation before type-specific checks even run.
+    @Pattern(regexp = "^$|(0[1-9]|1[0-2])/[0-9]{4}", message = "cardExpiry must be in MM/YYYY format")
     private String cardExpiry;
 
     private String cardHolderName;

@@ -26,8 +26,12 @@ public class CreatePaymentMethodRequest {
 
     // Only required when type == CARD. Expiry and holder name are not
     // sensitive on their own (unlike the raw number/CVV) so they're safe to
-    // persist and reuse at payment time.
-    @Pattern(regexp = "(0[1-9]|1[0-2])/[0-9]{4}", message = "cardExpiry must be in MM/YYYY format")
+    // persist and reuse at payment time. Blank is allowed here (and rejected
+    // in UserService.validateCardExpiryAndHolder for CARD requests) so that
+    // UPI/NETBANKING submissions - which always send an empty string for
+    // this field - don't fail bean validation before type-specific checks
+    // even run.
+    @Pattern(regexp = "^$|(0[1-9]|1[0-2])/[0-9]{4}", message = "cardExpiry must be in MM/YYYY format")
     private String cardExpiry;
 
     private String cardHolderName;
