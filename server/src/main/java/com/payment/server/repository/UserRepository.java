@@ -84,4 +84,8 @@ public class UserRepository {
     public void updateKycStatus(int id, String kycStatus) {
         jdbcTemplate.update("UPDATE users SET kyc_status = ? WHERE id = ?", kycStatus, id);
     }
+
+    public void updatePinHash(int id, String pinHash) {
+        jdbcTemplate.update("UPDATE users SET pin_hash = ? WHERE id = ?", pinHash, id);
+    }
 }

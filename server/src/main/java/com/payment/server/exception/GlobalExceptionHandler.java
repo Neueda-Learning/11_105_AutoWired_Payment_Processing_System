@@ -55,6 +55,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, "DUPLICATE_USER", ex.getMessage());
     }
 
+    @ExceptionHandler(IncorrectPinException.class)
+    public ResponseEntity<Object> handleIncorrectPin(IncorrectPinException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "INCORRECT_PIN", ex.getMessage());
+    }
+
     @ExceptionHandler(BankAccountNotFoundException.class)
     public ResponseEntity<Object> handleBankAccountNotFound(BankAccountNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, "BANK_ACCOUNT_NOT_FOUND", ex.getMessage());

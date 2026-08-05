@@ -36,6 +36,14 @@ public class PaymentRepository {
         payment.setCardExpiry(rs.getString("card_expiry"));
         payment.setUpiId(rs.getString("upi_id"));
         payment.setBankName(rs.getString("bank_name"));
+        payment.setFeeAmount(rs.getBigDecimal("fee_amount"));
+        payment.setFeePercentage(rs.getBigDecimal("fee_percentage"));
+        payment.setNetAmount(rs.getBigDecimal("net_amount"));
+        payment.setPayerUserId(rs.getObject("payer_user_id", Integer.class));
+        payment.setPayeeUserId(rs.getObject("payee_user_id", Integer.class));
+        payment.setSourcePaymentMethodId(rs.getObject("source_payment_method_id", Integer.class));
+        payment.setGrossAmount(rs.getBigDecimal("gross_amount"));
+        payment.setAuthenticationStatus(rs.getString("authentication_status"));
         java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             payment.setCreatedAt(createdAt.toLocalDateTime());
@@ -72,8 +80,10 @@ public class PaymentRepository {
     public int save(Payment payment) {
         String sql = "INSERT INTO payments "
                 + "(source_account, destination_account, idempotency_key, amount, currency, payment_method, status, "
-                + "risk_score, reference, card_last4, card_expiry, upi_id, bank_name, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "risk_score, reference, card_last4, card_expiry, upi_id, bank_name, fee_amount, fee_percentage, "
+                + "net_amount, payer_user_id, payee_user_id, source_payment_method_id, gross_amount, "
+                + "authentication_status, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -91,8 +101,16 @@ public class PaymentRepository {
             ps.setString(11, payment.getCardExpiry());
             ps.setString(12, payment.getUpiId());
             ps.setString(13, payment.getBankName());
-            ps.setTimestamp(14, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
-            ps.setTimestamp(15, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
+            ps.setBigDecimal(14, payment.getFeeAmount());
+            ps.setBigDecimal(15, payment.getFeePercentage());
+            ps.setBigDecimal(16, payment.getNetAmount());
+            ps.setObject(17, payment.getPayerUserId(), java.sql.Types.INTEGER);
+            ps.setObject(18, payment.getPayeeUserId(), java.sql.Types.INTEGER);
+            ps.setObject(19, payment.getSourcePaymentMethodId(), java.sql.Types.INTEGER);
+            ps.setBigDecimal(20, payment.getGrossAmount());
+            ps.setString(21, payment.getAuthenticationStatus());
+            ps.setTimestamp(22, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
+            ps.setTimestamp(23, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
