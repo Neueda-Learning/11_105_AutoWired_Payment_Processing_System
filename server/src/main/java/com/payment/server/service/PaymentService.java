@@ -110,7 +110,11 @@ public class PaymentService {
         return historyRepository.findByPaymentId(id);
     }
 
-    @Transactional
+    // noRollbackFor: processValidationRiskAndFee intentionally persists a
+    // FAILED status + audit history row before throwing PaymentValidationException.
+    // Without this, Spring's default rollback-on-RuntimeException would wipe out
+    // that FAILED payment entirely, leaving no trace of the failure anywhere.
+    @Transactional(noRollbackFor = PaymentValidationException.class)
     public Payment createPayment(Payment payment) {
         checkIdempotency(payment);
 
@@ -158,7 +162,8 @@ public class PaymentService {
      * verified - marks authenticationStatus VERIFIED and continues into the
      * existing validate -> risk score -> fee pipeline.
      */
-    @Transactional
+    // See createPayment for why noRollbackFor is needed here too.
+    @Transactional(noRollbackFor = PaymentValidationException.class)
     public Payment completeAuthenticatedPayment(int id) {
         Payment payment = getPaymentById(id);
         payment.setAuthenticationStatus("VERIFIED");
