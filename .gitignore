@@ -1,0 +1,5 @@
+# Local environment secrets - use .env.example as the template
+.env
+
+# IDE settings
+.idea/
