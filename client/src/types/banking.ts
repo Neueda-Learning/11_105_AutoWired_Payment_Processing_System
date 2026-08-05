@@ -38,6 +38,8 @@ export interface PaymentMethodEntity {
     upiId?: string;
     cardLast4?: string;
     cardToken?: string;
+    cardExpiry?: string;
+    cardHolderName?: string;
     linkedBankName?: string;
     default: boolean;
 }
@@ -76,6 +78,17 @@ export interface CreatePaymentMethodRequest {
     type: PaymentMethodType;
     upiId?: string;
     cardNumber?: string;
+    cardExpiry?: string;
+    cardHolderName?: string;
+    linkedBankName?: string;
+    isDefault?: boolean;
+}
+
+export interface UpdatePaymentMethodRequest {
+    upiId?: string;
+    cardNumber?: string;
+    cardExpiry?: string;
+    cardHolderName?: string;
     linkedBankName?: string;
     isDefault?: boolean;
 }
@@ -97,6 +110,7 @@ export interface InitiatePaymentRequest {
     cardNumber?: string;
     cardExpiry?: string;
     cardHolderName?: string;
+    cvv?: string;
     upiId?: string;
     bankName?: string;
 }

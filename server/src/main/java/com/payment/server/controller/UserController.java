@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.payment.server.dto.CreateBankAccountRequest;
 import com.payment.server.dto.CreatePaymentMethodRequest;
 import com.payment.server.dto.CreateUserRequest;
+import com.payment.server.dto.UpdatePaymentMethodRequest;
 import com.payment.server.dto.UpdatePinRequest;
 import com.payment.server.model.BankAccount;
 import com.payment.server.model.PaymentMethod;
@@ -87,5 +89,18 @@ public class UserController {
             @Valid @RequestBody UpdatePinRequest request) {
         User updated = userService.updatePin(id, request);
         return ResponseEntity.ok(updated);
+    }
+
+    @PutMapping("/{id}/payment-methods/{methodId}")
+    public ResponseEntity<PaymentMethod> updatePaymentMethod(@PathVariable int id,
+            @PathVariable int methodId, @RequestBody UpdatePaymentMethodRequest request) {
+        PaymentMethod updated = userService.updatePaymentMethod(id, methodId, request);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}/payment-methods/{methodId}")
+    public ResponseEntity<Void> deletePaymentMethod(@PathVariable int id, @PathVariable int methodId) {
+        userService.deletePaymentMethod(id, methodId);
+        return ResponseEntity.noContent().build();
     }
 }

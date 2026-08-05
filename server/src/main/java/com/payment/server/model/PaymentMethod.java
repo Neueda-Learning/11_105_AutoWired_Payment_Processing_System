@@ -23,6 +23,8 @@ public class PaymentMethod {
     // Masked/safe card details - raw card number/token never stored here.
     private String cardLast4;
     private String cardToken;
+    private String cardExpiry; // MM/YYYY - safe to persist and return.
+    private String cardHolderName; // Safe to persist and return (not sensitive on its own).
 
     private String linkedBankName;
     private boolean isDefault;
@@ -85,6 +87,22 @@ public class PaymentMethod {
 
     public void setCardToken(String cardToken) {
         this.cardToken = cardToken;
+    }
+
+    public String getCardExpiry() {
+        return cardExpiry;
+    }
+
+    public void setCardExpiry(String cardExpiry) {
+        this.cardExpiry = cardExpiry;
+    }
+
+    public String getCardHolderName() {
+        return cardHolderName;
+    }
+
+    public void setCardHolderName(String cardHolderName) {
+        this.cardHolderName = cardHolderName;
     }
 
     public String getLinkedBankName() {
