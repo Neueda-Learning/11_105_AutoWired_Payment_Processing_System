@@ -9,6 +9,7 @@ import type {
     BankAccount,
     InitiatePaymentRequest,
     PaymentMethodType,
+    User,
 } from '../../types/banking';
 import { DEFAULT_CURRENCY, formatINR, toINR } from '../../utils/currency';
 
@@ -30,6 +31,9 @@ interface FormState {
 export default function MakePayment() {
     const { user, bankAccounts, paymentMethods } = useUserSession();
     const [otherAccounts, setOtherAccounts] = useState<BankAccount[]>([]);
+    const [accountHolders, setAccountHolders] = useState<Map<number, string>>(
+        new Map(),
+    );
     const [accountsLoading, setAccountsLoading] = useState(true);
     const [form, setForm] = useState<FormState>({
         sourcePaymentMethodId: '',
@@ -51,9 +55,15 @@ export default function MakePayment() {
         let cancelled = false;
         async function load() {
             try {
-                const all = await usersApi.getAllBankAccounts();
+                const [all, users] = await Promise.all([
+                    usersApi.getAllBankAccounts(),
+                    usersApi.getAll(),
+                ]);
                 if (!cancelled) {
                     setOtherAccounts(all.filter((a) => a.userId !== user?.id));
+                    setAccountHolders(
+                        new Map(users.map((u: User) => [u.id, u.fullName])),
+                    );
                 }
             } finally {
                 if (!cancelled) setAccountsLoading(false);
@@ -357,6 +367,9 @@ export default function MakePayment() {
                         </option>
                         {otherAccounts.map((a) => (
                             <option key={a.id} value={a.id}>
+                                {accountHolders.get(a.userId)
+                                    ? `${accountHolders.get(a.userId)} — `
+                                    : ''}
                                 {a.bankName} — {a.accountNumber}
                             </option>
                         ))}
