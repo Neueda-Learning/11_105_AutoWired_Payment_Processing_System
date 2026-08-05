@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         GIT_URL = 'https://github.com/Neueda-Learning/11_105_AutoWired_Payment_Processing_System.git'
-        BRANCH  = 'dev'
+        BRANCH  = 'main'
     }
 
     stages {
