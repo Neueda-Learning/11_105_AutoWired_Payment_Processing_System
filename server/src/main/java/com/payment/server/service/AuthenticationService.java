@@ -11,6 +11,7 @@ import com.payment.server.dto.InitiatePaymentRequest;
 import com.payment.server.exception.AuthChallengeExpiredException;
 import com.payment.server.exception.AuthenticationFailedException;
 import com.payment.server.exception.OtpResendLimitExceededException;
+import com.payment.server.exception.PaymentValidationException;
 import com.payment.server.exception.UserNotFoundException;
 import com.payment.server.model.AuthChallenge;
 import com.payment.server.model.Payment;
@@ -107,8 +108,14 @@ public class AuthenticationService {
     // intentionally persists a FAILED status + audit history row before this
     // method throws. Without this, Spring's default rollback-on-RuntimeException
     // would wipe out that FAILED payment entirely (see PaymentService.createPayment
-    // for the same pattern).
-    @Transactional(noRollbackFor = { AuthenticationFailedException.class, AuthChallengeExpiredException.class })
+    // for the same pattern). PaymentValidationException is also included here:
+    // on success, completeAuthenticatedPayment() runs validation (e.g. insufficient
+    // balance) inside THIS method's transaction (Spring nests it since it's called
+    // via another bean's proxy while this transaction is already active), so this
+    // outer method's rollback rules - not completeAuthenticatedPayment's own -
+    // decide whether the FAILED write survives.
+    @Transactional(noRollbackFor = { AuthenticationFailedException.class, AuthChallengeExpiredException.class,
+            PaymentValidationException.class })
     public Payment authenticate(int paymentId, AuthenticatePaymentRequest request) {
         Payment payment = paymentService.getPaymentById(paymentId);
         AuthChallenge challenge = authChallengeRepository.findLatestByPaymentId(paymentId);
