@@ -117,3 +117,8 @@ export interface FeeRuleRequest {
     maxFeeCap?: number | null;
     active: boolean;
 }
+
+export interface UpdatePinRequest {
+    currentPin: string;
+    newPin: string;
+}

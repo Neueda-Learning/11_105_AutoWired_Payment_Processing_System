@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.payment.server.dto.CreateBankAccountRequest;
 import com.payment.server.dto.CreatePaymentMethodRequest;
 import com.payment.server.dto.CreateUserRequest;
+import com.payment.server.dto.UpdatePinRequest;
 import com.payment.server.model.BankAccount;
 import com.payment.server.model.PaymentMethod;
 import com.payment.server.model.User;
@@ -78,5 +80,12 @@ public class UserController {
             @Valid @RequestBody CreatePaymentMethodRequest request) {
         PaymentMethod created = userService.addPaymentMethod(id, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PutMapping("/{id}/pin")
+    public ResponseEntity<User> updatePin(@PathVariable int id,
+            @Valid @RequestBody UpdatePinRequest request) {
+        User updated = userService.updatePin(id, request);
+        return ResponseEntity.ok(updated);
     }
 }

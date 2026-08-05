@@ -5,6 +5,7 @@ import type {
     CreatePaymentMethodRequest,
     CreateUserRequest,
     PaymentMethodEntity,
+    UpdatePinRequest,
     User,
 } from '../types/banking';
 
@@ -57,6 +58,17 @@ export const usersApi = {
     ): Promise<PaymentMethodEntity> {
         const { data } = await apiClient.post<PaymentMethodEntity>(
             `/users/${userId}/payment-methods`,
+            payload,
+        );
+        return data;
+    },
+
+    async updatePin(
+        userId: number,
+        payload: UpdatePinRequest,
+    ): Promise<User> {
+        const { data } = await apiClient.put<User>(
+            `/users/${userId}/pin`,
             payload,
         );
         return data;

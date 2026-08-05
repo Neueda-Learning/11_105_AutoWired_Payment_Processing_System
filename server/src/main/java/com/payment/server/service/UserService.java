@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import com.payment.server.dto.CreateBankAccountRequest;
 import com.payment.server.dto.CreatePaymentMethodRequest;
 import com.payment.server.dto.CreateUserRequest;
+import com.payment.server.dto.UpdatePinRequest;
 import com.payment.server.exception.BankAccountNotFoundException;
 import com.payment.server.exception.DuplicateUserException;
+import com.payment.server.exception.IncorrectPinException;
 import com.payment.server.exception.UserNotFoundException;
 import com.payment.server.model.BankAccount;
 import com.payment.server.model.PaymentMethod;
@@ -63,6 +65,24 @@ public class UserService {
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    /**
+     * Changes a user's PIN from the customer profile section - requires the
+     * current PIN to match before accepting the new one.
+     */
+    public User updatePin(int userId, UpdatePinRequest request) {
+        User user = getUserById(userId);
+
+        if (user.getPinHash() == null
+                || !OtpHashUtil.matches(request.getCurrentPin(), user.getPinHash())) {
+            throw new IncorrectPinException();
+        }
+
+        String newPinHash = OtpHashUtil.hash(request.getNewPin());
+        userRepository.updatePinHash(userId, newPinHash);
+        user.setPinHash(newPinHash);
+        return user;
     }
 
     public List<BankAccount> getAllBankAccounts() {

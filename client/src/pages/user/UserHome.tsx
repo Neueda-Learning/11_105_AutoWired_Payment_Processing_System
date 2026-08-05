@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
+import type { AxiosError } from 'axios';
 import { usersApi } from '../../api/usersApi';
 import { useUserSession } from '../../context/UserContext';
-import type { User } from '../../types/banking';
+import Modal from '../../components/Modal';
+import type { ApiErrorResponse } from '../../types/payment';
+import type { UpdatePinRequest, User } from '../../types/banking';
+
+const EMPTY_PIN_FORM = { currentPin: '', newPin: '', confirmPin: '' };
 
 export default function UserHome() {
     const { user, bankAccounts, paymentMethods, loading, selectUser } =
@@ -10,6 +15,12 @@ export default function UserHome() {
     const [usersLoading, setUsersLoading] = useState(true);
     const [selecting, setSelecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [pinModalOpen, setPinModalOpen] = useState(false);
+    const [pinForm, setPinForm] = useState(EMPTY_PIN_FORM);
+    const [pinErrors, setPinErrors] = useState<string[]>([]);
+    const [pinSubmitting, setPinSubmitting] = useState(false);
+    const [pinSuccess, setPinSuccess] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -39,6 +50,54 @@ export default function UserHome() {
         } finally {
             setSelecting(false);
         }
+    }
+
+    function openPinModal() {
+        setPinForm(EMPTY_PIN_FORM);
+        setPinErrors([]);
+        setPinModalOpen(true);
+    }
+
+    async function handlePinSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setPinErrors([]);
+
+        if (!/^\d{4,6}$/.test(pinForm.newPin)) {
+            setPinErrors(['New PIN must be 4-6 digits.']);
+            return;
+        }
+        if (pinForm.newPin !== pinForm.confirmPin) {
+            setPinErrors(['New PIN and confirmation do not match.']);
+            return;
+        }
+
+        setPinSubmitting(true);
+        try {
+            const payload: UpdatePinRequest = {
+                currentPin: pinForm.currentPin,
+                newPin: pinForm.newPin,
+            };
+            await usersApi.updatePin(user!.id, payload);
+            setPinModalOpen(false);
+            setPinSuccess('Your PIN has been updated.');
+            setPinForm(EMPTY_PIN_FORM);
+        } catch (err) {
+            const data = (err as AxiosError<ApiErrorResponse>).response?.data;
+            setPinErrors(
+                data?.details && data.details.length > 0
+                    ? data.details
+                    : [data?.message ?? 'Failed to update PIN'],
+            );
+        } finally {
+            setPinSubmitting(false);
+        }
+    }
+
+    function updatePinField<K extends keyof typeof EMPTY_PIN_FORM>(
+        key: K,
+        value: string,
+    ) {
+        setPinForm((f) => ({ ...f, [key]: value }));
     }
 
     if (loading) {
@@ -175,6 +234,108 @@ export default function UserHome() {
                         )}
                     </div>
                 </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    {pinSuccess && (
+                        <p className="mb-4 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700">
+                            <span>✅</span> {pinSuccess}
+                        </p>
+                    )}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 text-sm">
+                                🔒
+                            </span>
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">
+                                    Security
+                                </p>
+                                <p className="text-xs text-slate-400">
+                                    Update the PIN used to authenticate your
+                                    payments.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={openPinModal}
+                            className="flex items-center gap-1.5 rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900"
+                        >
+                            Change PIN
+                        </button>
+                    </div>
+                </div>
+
+                <Modal
+                    open={pinModalOpen}
+                    onClose={() => setPinModalOpen(false)}
+                    title="Change PIN"
+                    icon="🔒"
+                >
+                    <form onSubmit={handlePinSubmit} className="space-y-4">
+                        {pinErrors.length > 0 && (
+                            <ul className="space-y-1 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                {pinErrors.map((err, i) => (
+                                    <li key={i}>{err}</li>
+                                ))}
+                            </ul>
+                        )}
+                        <div>
+                            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Current PIN
+                            </label>
+                            <input
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={6}
+                                required
+                                value={pinForm.currentPin}
+                                onChange={(e) =>
+                                    updatePinField('currentPin', e.target.value)
+                                }
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                New PIN
+                            </label>
+                            <input
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={6}
+                                required
+                                value={pinForm.newPin}
+                                onChange={(e) =>
+                                    updatePinField('newPin', e.target.value)
+                                }
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Confirm New PIN
+                            </label>
+                            <input
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={6}
+                                required
+                                value={pinForm.confirmPin}
+                                onChange={(e) =>
+                                    updatePinField('confirmPin', e.target.value)
+                                }
+                                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={pinSubmitting}
+                            className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                            {pinSubmitting ? 'Updating…' : 'Update PIN'}
+                        </button>
+                    </form>
+                </Modal>
             </div>
         );
     }
