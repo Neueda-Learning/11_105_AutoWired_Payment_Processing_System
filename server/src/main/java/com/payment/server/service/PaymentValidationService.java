@@ -1,6 +1,7 @@
 package com.payment.server.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,9 +9,12 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
-import com.payment.server.model.Customer;
 import com.payment.server.model.Payment;
+import com.payment.server.model.User;
+import com.payment.server.repository.BankAccountRepository;
 import com.payment.server.repository.CustomerRepository;
+import com.payment.server.repository.PaymentRepository;
+import com.payment.server.repository.UserRepository;
 
 @Service
 public class PaymentValidationService {
@@ -22,9 +26,16 @@ public class PaymentValidationService {
             "Kotak Mahindra Bank", "Punjab National Bank", "Bank of Baroda", "Yes Bank");
 
     private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
+    private final BankAccountRepository bankAccountRepository;
 
-    public PaymentValidationService(CustomerRepository customerRepository) {
+    public PaymentValidationService(CustomerRepository customerRepository, UserRepository userRepository,
+            PaymentRepository paymentRepository, BankAccountRepository bankAccountRepository) {
         this.customerRepository = customerRepository;
+        this.userRepository = userRepository;
+        this.paymentRepository = paymentRepository;
+        this.bankAccountRepository = bankAccountRepository;
     }
 
     public static class ValidationResult {
@@ -69,13 +80,43 @@ public class PaymentValidationService {
             if (payment.getSourceAccount().equalsIgnoreCase(payment.getDestinationAccount())) {
                 errors.add("Source and destination accounts must be different");
             }
-            Customer source = customerRepository.findByAccountNumber(payment.getSourceAccount());
-            Customer destination = customerRepository.findByAccountNumber(payment.getDestinationAccount());
-            if (source == null) {
+            boolean sourceExists = customerRepository.findByAccountNumber(payment.getSourceAccount()) != null
+                    || bankAccountRepository.findByAccountNumber(payment.getSourceAccount()) != null;
+            boolean destinationExists = customerRepository.findByAccountNumber(payment.getDestinationAccount()) != null
+                    || bankAccountRepository.findByAccountNumber(payment.getDestinationAccount()) != null;
+            if (!sourceExists) {
                 errors.add("Source account is invalid or doesn't exist");
             }
-            if (destination == null) {
+            if (!destinationExists) {
                 errors.add("Destination account is invalid or doesn't exist");
+            }
+
+            // Sufficient-funds check - only enforced when the source resolves
+            // to a v2 BankAccount (legacy Customer-only accounts have no
+            // tracked balance). Prevents a payment from overdrawing the
+            // payer's account.
+            if (sourceExists && payment.getAmount() != null) {
+                com.payment.server.model.BankAccount sourceBankAccount = bankAccountRepository
+                        .findByAccountNumber(payment.getSourceAccount());
+                if (sourceBankAccount != null
+                        && sourceBankAccount.getBalance().compareTo(payment.getAmount()) < 0) {
+                    errors.add("Insufficient balance in source account");
+                }
+            }
+        }
+
+        // Customer-specific daily spend limit - see payment-system-v2-design.md
+        // section 9. Only enforced when the payment is linked to a platform
+        // User with a configured dailyLimit (legacy Customer-only payments skip
+        // this check).
+        if (payment.getPayerUserId() != null && payment.getAmount() != null) {
+            User payer = userRepository.findById(payment.getPayerUserId());
+            if (payer != null && payer.getDailyLimit() != null) {
+                java.time.LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+                BigDecimal spentToday = paymentRepository.sumAmountByPayerUserIdSince(payer.getId(), startOfToday);
+                if (spentToday.add(payment.getAmount()).compareTo(payer.getDailyLimit()) > 0) {
+                    errors.add("Payment would exceed daily spending limit of " + payer.getDailyLimit());
+                }
             }
         }
 

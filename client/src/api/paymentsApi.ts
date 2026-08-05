@@ -47,4 +47,9 @@ export const paymentsApi = {
         const { data } = await apiClient.get<PaymentStats>('/payments/stats');
         return data;
     },
+
+    async getFlagged(): Promise<Payment[]> {
+        const { data } = await apiClient.get<Payment[]>('/payments/flagged');
+        return data;
+    },
 };

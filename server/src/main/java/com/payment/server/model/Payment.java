@@ -35,6 +35,28 @@ public class Payment {
     // Net banking bank name - safe to persist and return.
     private String bankName;
 
+    // Dynamic transaction fee (see TransactionFeeRule / FeeCalculationService).
+    private BigDecimal feeAmount;
+    private BigDecimal feePercentage;
+    private BigDecimal netAmount;
+
+    // Who's paying whom (nullable - legacy payments may only have account
+    // numbers without linked User rows). See User / payment-system-v2-design.md.
+    private Integer payerUserId;
+    private Integer payeeUserId;
+
+    // Which UPI/card/netbanking route (PaymentMethod) was used to initiate this
+    // payment.
+    private Integer sourcePaymentMethodId;
+
+    // What the payer sends before the fee is deducted; amount stays as the
+    // legacy field but grossAmount mirrors it explicitly for the new fee model.
+    private BigDecimal grossAmount;
+
+    // PIN/OTP authentication gate status - PENDING / VERIFIED / FAILED.
+    // See AuthChallenge / payment-system-v2-design.md section 5.
+    private String authenticationStatus;
+
     public Payment() {
     }
 
@@ -182,5 +204,69 @@ public class Payment {
 
     public void setBankName(String bankName) {
         this.bankName = bankName;
+    }
+
+    public BigDecimal getFeeAmount() {
+        return feeAmount;
+    }
+
+    public void setFeeAmount(BigDecimal feeAmount) {
+        this.feeAmount = feeAmount;
+    }
+
+    public BigDecimal getFeePercentage() {
+        return feePercentage;
+    }
+
+    public void setFeePercentage(BigDecimal feePercentage) {
+        this.feePercentage = feePercentage;
+    }
+
+    public BigDecimal getNetAmount() {
+        return netAmount;
+    }
+
+    public void setNetAmount(BigDecimal netAmount) {
+        this.netAmount = netAmount;
+    }
+
+    public Integer getPayerUserId() {
+        return payerUserId;
+    }
+
+    public void setPayerUserId(Integer payerUserId) {
+        this.payerUserId = payerUserId;
+    }
+
+    public Integer getPayeeUserId() {
+        return payeeUserId;
+    }
+
+    public void setPayeeUserId(Integer payeeUserId) {
+        this.payeeUserId = payeeUserId;
+    }
+
+    public Integer getSourcePaymentMethodId() {
+        return sourcePaymentMethodId;
+    }
+
+    public void setSourcePaymentMethodId(Integer sourcePaymentMethodId) {
+        this.sourcePaymentMethodId = sourcePaymentMethodId;
+    }
+
+    public BigDecimal getGrossAmount() {
+        return grossAmount;
+    }
+
+    public void setGrossAmount(BigDecimal grossAmount) {
+        this.grossAmount = grossAmount;
+    }
+
+    public String getAuthenticationStatus() {
+        return authenticationStatus;
+    }
+
+    public void setAuthenticationStatus(String authenticationStatus) {
+        this.authenticationStatus = authenticationStatus;
     }
 }

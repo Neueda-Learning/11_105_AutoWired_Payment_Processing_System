@@ -16,6 +16,8 @@ public class RiskScoringService {
     private static final int ODD_HOUR_END = 5;
     private static final int VELOCITY_WINDOW_MINUTES = 60;
     private static final int VELOCITY_THRESHOLD = 3;
+    // Sudden-spike rule: flag if amount is >= 3x the payer's rolling average.
+    private static final BigDecimal SPIKE_MULTIPLIER = new BigDecimal("3");
 
     private final PaymentRepository paymentRepository;
 
@@ -40,9 +42,22 @@ public class RiskScoringService {
         // Velocity rule - recent transaction count from same source account
         LocalDateTime since = LocalDateTime.now().minusMinutes(VELOCITY_WINDOW_MINUTES);
         long recentCount = paymentRepository.countRecentByAccountExcludingPayment(
-            payment.getSourceAccount(), since, currentPaymentId);
+                payment.getSourceAccount(), since, currentPaymentId);
         if (recentCount >= VELOCITY_THRESHOLD) {
             score += 40;
+        }
+
+        // Sudden increase in transaction value rule - see
+        // payment-system-v2-design.md section 9. Compares the current
+        // amount to the payer's historical rolling average; only applies
+        // when linked to a platform User (payerUserId present).
+        if (payment.getPayerUserId() != null && payment.getAmount() != null) {
+            BigDecimal average = paymentRepository.averageAmountByPayerUserIdExcluding(
+                    payment.getPayerUserId(), currentPaymentId);
+            if (average != null && average.compareTo(BigDecimal.ZERO) > 0
+                    && payment.getAmount().compareTo(average.multiply(SPIKE_MULTIPLIER)) >= 0) {
+                score += 30;
+            }
         }
 
         return Math.min(score, 100);
