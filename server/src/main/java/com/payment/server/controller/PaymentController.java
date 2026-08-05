@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.payment.server.dto.CreatePaymentRequest;
+import com.payment.server.dto.PaymentStats;
 import com.payment.server.dto.UpdateStatusRequest;
 import com.payment.server.model.Payment;
 import com.payment.server.model.PaymentStatusHistory;
@@ -35,6 +36,16 @@ public class PaymentController {
     public ResponseEntity<List<Payment>> getAllPayments(
             @RequestParam(required = false) String status) {
         return ResponseEntity.ok(paymentService.getAllPayments(status));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<PaymentStats> getStats() {
+        return ResponseEntity.ok(paymentService.getStats());
+    }
+
+    @GetMapping("/flagged")
+    public ResponseEntity<List<Payment>> getFlaggedPayments() {
+        return ResponseEntity.ok(paymentService.getFlaggedPayments());
     }
 
     @GetMapping("/{id}")

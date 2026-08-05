@@ -1,0 +1,10 @@
+target/
+*.class
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.iml
+HELP.md
+README.md

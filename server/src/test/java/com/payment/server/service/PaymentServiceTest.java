@@ -25,6 +25,7 @@ import com.payment.server.exception.DuplicatePaymentException;
 import com.payment.server.exception.InvalidStatusTransitionException;
 import com.payment.server.exception.PaymentValidationException;
 import com.payment.server.model.Payment;
+import com.payment.server.repository.BankAccountRepository;
 import com.payment.server.repository.PaymentRepository;
 import com.payment.server.repository.PaymentStatusHistoryRepository;
 
@@ -43,9 +44,18 @@ class PaymentServiceTest {
     @Mock
     private RiskScoringService riskScoringService;
 
+    @Mock
+    private FeeCalculationService feeCalculationService;
+
+    @Mock
+    private BankAccountRepository bankAccountRepository;
+
+    private final CurrencyConversionService currencyConversionService = new CurrencyConversionService();
+
     @Test
     void createPaymentWhenValidationPassesPersistsValidatedPaymentWithRiskScore() {
-        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService, riskScoringService);
+        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService,
+                riskScoringService, feeCalculationService, bankAccountRepository, currencyConversionService);
         Payment payment = buildPayment("SRC-100", "DST-200", "USD", "1000.00");
 
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
@@ -56,16 +66,21 @@ class PaymentServiceTest {
         when(validationService.validate(any(Payment.class)))
                 .thenReturn(new PaymentValidationService.ValidationResult(true, List.of()));
         when(riskScoringService.scorePayment(any(Payment.class), anyInt())).thenReturn(65);
+        when(feeCalculationService.calculateFee(any(String.class), any(BigDecimal.class)))
+                .thenReturn(new FeeCalculationService.FeeResult(
+                        new BigDecimal("10.00"), new BigDecimal("1.0"), new BigDecimal("990.00")));
 
         Payment created = service.createPayment(payment);
 
         assertEquals(101, created.getId());
-        assertEquals(PaymentService.STATUS_VALIDATED, created.getStatus());
+        assertEquals(PaymentService.STATUS_COMPLETED, created.getStatus());
         assertEquals(65, created.getRiskScore());
         assertNotNull(created.getCreatedAt());
         assertNotNull(created.getUpdatedAt());
 
         verify(paymentRepository).updateStatus(101, PaymentService.STATUS_VALIDATED);
+        verify(paymentRepository).updateStatus(101, PaymentService.STATUS_SENT);
+        verify(paymentRepository).updateStatus(101, PaymentService.STATUS_COMPLETED);
         verify(paymentRepository).updateRiskScore(101, 65);
 
         InOrder order = inOrder(historyRepository);
@@ -76,14 +91,16 @@ class PaymentServiceTest {
 
     @Test
     void createPaymentWhenValidationFailsMarksFailedAndThrows() {
-        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService, riskScoringService);
+        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService,
+                riskScoringService, feeCalculationService, bankAccountRepository, currencyConversionService);
         Payment payment = buildPayment("SRC-100", "DST-200", "USD", "1000.00");
 
         when(paymentRepository.save(any(Payment.class))).thenReturn(202);
         when(validationService.validate(any(Payment.class))).thenReturn(
                 new PaymentValidationService.ValidationResult(false, List.of("Currency is not supported")));
 
-        PaymentValidationException ex = assertThrows(PaymentValidationException.class, () -> service.createPayment(payment));
+        PaymentValidationException ex = assertThrows(PaymentValidationException.class,
+                () -> service.createPayment(payment));
 
         assertTrue(ex.getErrors().contains("Currency is not supported"));
         verify(paymentRepository).updateStatus(202, PaymentService.STATUS_FAILED);
@@ -95,7 +112,8 @@ class PaymentServiceTest {
 
     @Test
     void createPaymentWhenIdempotencyKeyAlreadyExistsThrowsDuplicatePaymentException() {
-        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService, riskScoringService);
+        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService,
+                riskScoringService, feeCalculationService, bankAccountRepository, currencyConversionService);
         Payment payment = buildPayment("SRC-100", "DST-200", "USD", "1000.00");
         payment.setIdempotencyKey("idem-key-1");
 
@@ -113,7 +131,8 @@ class PaymentServiceTest {
 
     @Test
     void transitionStatusAllowsValidTransitionAndStoresHistory() {
-        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService, riskScoringService);
+        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService,
+                riskScoringService, feeCalculationService, bankAccountRepository, currencyConversionService);
         Payment existing = new Payment();
         existing.setId(7);
         existing.setStatus(PaymentService.STATUS_CREATED);
@@ -129,7 +148,8 @@ class PaymentServiceTest {
 
     @Test
     void transitionStatusRejectsInvalidTransition() {
-        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService, riskScoringService);
+        PaymentService service = new PaymentService(paymentRepository, historyRepository, validationService,
+                riskScoringService, feeCalculationService, bankAccountRepository, currencyConversionService);
         Payment existing = new Payment();
         existing.setId(8);
         existing.setStatus(PaymentService.STATUS_CREATED);
@@ -140,7 +160,8 @@ class PaymentServiceTest {
                 () -> service.transitionStatus(8, PaymentService.STATUS_COMPLETED, "skip"));
 
         verify(paymentRepository, never()).updateStatus(any(Integer.class), any(String.class));
-        verify(historyRepository, never()).save(any(Integer.class), any(String.class), any(String.class), any(String.class));
+        verify(historyRepository, never()).save(any(Integer.class), any(String.class), any(String.class),
+                any(String.class));
     }
 
     private Payment buildPayment(String source, String destination, String currency, String amount) {

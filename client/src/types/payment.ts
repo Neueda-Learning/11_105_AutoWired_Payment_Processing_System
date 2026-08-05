@@ -21,6 +21,9 @@ export interface Payment {
     cardExpiry?: string;
     upiId?: string;
     bankName?: string;
+    feeAmount?: number;
+    feePercentage?: number;
+    netAmount?: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -68,4 +71,5 @@ export interface PaymentStats {
     successRate: number;
     avgRiskScore: number;
     statusCounts: Partial<Record<PaymentStatus, number>>;
+    totalFeesCollected?: number;
 }

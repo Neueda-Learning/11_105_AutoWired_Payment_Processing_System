@@ -3,6 +3,7 @@ import { paymentsApi } from '../api/paymentsApi';
 import type { Payment, PaymentStatusHistory } from '../types/payment';
 import StatusBadge from './StatusBadge';
 import RiskMeter from './RiskMeter';
+import { formatWithInrEquivalent } from '../utils/currency';
 
 interface Props {
     paymentId: number;
@@ -75,7 +76,7 @@ export default function PaymentDetails({ paymentId }: Props) {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <dt className="text-slate-500">Amount</dt>
                 <dd className="text-right font-medium text-slate-800">
-                    {payment.amount.toFixed(2)} {payment.currency}
+                    {formatWithInrEquivalent(payment.amount, payment.currency)}
                 </dd>
                 <dt className="text-slate-500">Source</dt>
                 <dd className="text-right text-slate-800">{payment.sourceAccount}</dd>
@@ -106,6 +107,23 @@ export default function PaymentDetails({ paymentId }: Props) {
                 )}
                 <dt className="text-slate-500">Reference</dt>
                 <dd className="text-right text-slate-800">{payment.reference || '—'}</dd>
+                {payment.feeAmount !== undefined && payment.feeAmount !== null && (
+                    <>
+                        <dt className="text-slate-500">Transaction Fee</dt>
+                        <dd className="text-right text-slate-800">
+                            {formatWithInrEquivalent(payment.feeAmount, payment.currency)}
+                            {payment.feePercentage !== undefined && payment.feePercentage !== null
+                                ? ` (${payment.feePercentage.toFixed(2)}%)`
+                                : ''}
+                        </dd>
+                        <dt className="text-slate-500">Net Amount</dt>
+                        <dd className="text-right font-medium text-slate-800">
+                            {payment.netAmount != null
+                                ? formatWithInrEquivalent(payment.netAmount, payment.currency)
+                                : '—'}
+                        </dd>
+                    </>
+                )}
                 <dt className="text-slate-500">Created</dt>
                 <dd className="text-right text-slate-800">
                     {new Date(payment.createdAt).toLocaleString()}

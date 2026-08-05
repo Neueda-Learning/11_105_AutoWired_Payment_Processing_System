@@ -34,8 +34,17 @@ public class PaymentRepository {
         payment.setIdempotencyKey(rs.getString("idempotency_key"));
         payment.setCardLast4(rs.getString("card_last4"));
         payment.setCardExpiry(rs.getString("card_expiry"));
+        payment.setCardHolderName(rs.getString("card_holder_name"));
         payment.setUpiId(rs.getString("upi_id"));
         payment.setBankName(rs.getString("bank_name"));
+        payment.setFeeAmount(rs.getBigDecimal("fee_amount"));
+        payment.setFeePercentage(rs.getBigDecimal("fee_percentage"));
+        payment.setNetAmount(rs.getBigDecimal("net_amount"));
+        payment.setPayerUserId(rs.getObject("payer_user_id", Integer.class));
+        payment.setPayeeUserId(rs.getObject("payee_user_id", Integer.class));
+        payment.setSourcePaymentMethodId(rs.getObject("source_payment_method_id", Integer.class));
+        payment.setGrossAmount(rs.getBigDecimal("gross_amount"));
+        payment.setAuthenticationStatus(rs.getString("authentication_status"));
         java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             payment.setCreatedAt(createdAt.toLocalDateTime());
@@ -72,8 +81,10 @@ public class PaymentRepository {
     public int save(Payment payment) {
         String sql = "INSERT INTO payments "
                 + "(source_account, destination_account, idempotency_key, amount, currency, payment_method, status, "
-                + "risk_score, reference, card_last4, card_expiry, upi_id, bank_name, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "risk_score, reference, card_last4, card_expiry, card_holder_name, upi_id, bank_name, fee_amount, fee_percentage, "
+                + "net_amount, payer_user_id, payee_user_id, source_payment_method_id, gross_amount, "
+                + "authentication_status, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -89,10 +100,19 @@ public class PaymentRepository {
             ps.setString(9, payment.getReference());
             ps.setString(10, payment.getCardLast4());
             ps.setString(11, payment.getCardExpiry());
-            ps.setString(12, payment.getUpiId());
-            ps.setString(13, payment.getBankName());
-            ps.setTimestamp(14, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
-            ps.setTimestamp(15, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
+            ps.setString(12, payment.getCardHolderName());
+            ps.setString(13, payment.getUpiId());
+            ps.setString(14, payment.getBankName());
+            ps.setBigDecimal(15, payment.getFeeAmount());
+            ps.setBigDecimal(16, payment.getFeePercentage());
+            ps.setBigDecimal(17, payment.getNetAmount());
+            ps.setObject(18, payment.getPayerUserId(), java.sql.Types.INTEGER);
+            ps.setObject(19, payment.getPayeeUserId(), java.sql.Types.INTEGER);
+            ps.setObject(20, payment.getSourcePaymentMethodId(), java.sql.Types.INTEGER);
+            ps.setBigDecimal(21, payment.getGrossAmount());
+            ps.setString(22, payment.getAuthenticationStatus());
+            ps.setTimestamp(23, java.sql.Timestamp.valueOf(payment.getCreatedAt()));
+            ps.setTimestamp(24, java.sql.Timestamp.valueOf(payment.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
@@ -109,6 +129,31 @@ public class PaymentRepository {
     public void updateRiskScore(int id, int riskScore) {
         String sql = "UPDATE payments SET risk_score = ? WHERE id = ?";
         jdbcTemplate.update(sql, riskScore, id);
+    }
+
+    public void updateAuthenticationStatus(int id, String authenticationStatus) {
+        String sql = "UPDATE payments SET authentication_status = ? WHERE id = ?";
+        jdbcTemplate.update(sql, authenticationStatus, id);
+    }
+
+    public void updateFee(int id, java.math.BigDecimal feeAmount, java.math.BigDecimal feePercentage,
+            java.math.BigDecimal netAmount) {
+        String sql = "UPDATE payments SET fee_amount = ?, fee_percentage = ?, net_amount = ? WHERE id = ?";
+        jdbcTemplate.update(sql, feeAmount, feePercentage, netAmount, id);
+    }
+
+    public java.math.BigDecimal sumAmountByPayerUserIdSince(int payerUserId, LocalDateTime since) {
+        String sql = "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payer_user_id = ? AND created_at > ?";
+        java.math.BigDecimal sum = jdbcTemplate.queryForObject(sql, java.math.BigDecimal.class, payerUserId,
+                java.sql.Timestamp.valueOf(since));
+        return sum == null ? java.math.BigDecimal.ZERO : sum;
+    }
+
+    public java.math.BigDecimal averageAmountByPayerUserIdExcluding(Integer payerUserId, int excludedPaymentId) {
+        String sql = "SELECT AVG(amount) FROM payments WHERE payer_user_id = ? AND id <> ?";
+        java.math.BigDecimal avg = jdbcTemplate.queryForObject(sql, java.math.BigDecimal.class, payerUserId,
+                excludedPaymentId);
+        return avg;
     }
 
     public long countRecentByAccount(String sourceAccount, LocalDateTime since) {
