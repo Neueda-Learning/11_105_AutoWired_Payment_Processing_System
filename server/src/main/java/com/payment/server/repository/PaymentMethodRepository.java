@@ -28,6 +28,8 @@ public class PaymentMethodRepository {
         method.setUpiId(rs.getString("upi_id"));
         method.setCardLast4(rs.getString("card_last4"));
         method.setCardToken(rs.getString("card_token"));
+        method.setCardExpiry(rs.getString("card_expiry"));
+        method.setCardHolderName(rs.getString("card_holder_name"));
         method.setLinkedBankName(rs.getString("linked_bank_name"));
         method.setDefault(rs.getBoolean("is_default"));
         return method;
@@ -46,8 +48,8 @@ public class PaymentMethodRepository {
 
     public int save(PaymentMethod method) {
         String sql = "INSERT INTO payment_methods "
-                + "(user_id, bank_account_id, type, upi_id, card_last4, card_token, linked_bank_name, is_default) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                + "(user_id, bank_account_id, type, upi_id, card_last4, card_token, card_expiry, card_holder_name, linked_bank_name, is_default) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -58,8 +60,10 @@ public class PaymentMethodRepository {
             ps.setString(4, method.getUpiId());
             ps.setString(5, method.getCardLast4());
             ps.setString(6, method.getCardToken());
-            ps.setString(7, method.getLinkedBankName());
-            ps.setBoolean(8, method.isDefault());
+            ps.setString(7, method.getCardExpiry());
+            ps.setString(8, method.getCardHolderName());
+            ps.setString(9, method.getLinkedBankName());
+            ps.setBoolean(10, method.isDefault());
             return ps;
         }, keyHolder);
 
@@ -70,5 +74,23 @@ public class PaymentMethodRepository {
 
     public void clearDefaultForUser(int userId) {
         jdbcTemplate.update("UPDATE payment_methods SET is_default = FALSE WHERE user_id = ?", userId);
+    }
+
+    public void update(PaymentMethod method) {
+        String sql = "UPDATE payment_methods SET upi_id = ?, card_last4 = ?, card_token = ?, "
+                + "card_expiry = ?, card_holder_name = ?, linked_bank_name = ?, is_default = ? WHERE id = ?";
+        jdbcTemplate.update(sql,
+                method.getUpiId(),
+                method.getCardLast4(),
+                method.getCardToken(),
+                method.getCardExpiry(),
+                method.getCardHolderName(),
+                method.getLinkedBankName(),
+                method.isDefault(),
+                method.getId());
+    }
+
+    public void deleteById(int id) {
+        jdbcTemplate.update("DELETE FROM payment_methods WHERE id = ?", id);
     }
 }

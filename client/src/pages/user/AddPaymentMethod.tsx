@@ -7,7 +7,9 @@ import { formatWithInrEquivalent } from '../../utils/currency';
 import type { ApiErrorResponse } from '../../types/payment';
 import type {
     CreatePaymentMethodRequest,
+    PaymentMethodEntity,
     PaymentMethodType,
+    UpdatePaymentMethodRequest,
 } from '../../types/banking';
 
 const EMPTY_FORM: CreatePaymentMethodRequest = {
@@ -15,6 +17,17 @@ const EMPTY_FORM: CreatePaymentMethodRequest = {
     type: 'UPI',
     upiId: '',
     cardNumber: '',
+    cardExpiry: '',
+    cardHolderName: '',
+    linkedBankName: '',
+    isDefault: false,
+};
+
+const EMPTY_EDIT_FORM: UpdatePaymentMethodRequest = {
+    upiId: '',
+    cardNumber: '',
+    cardExpiry: '',
+    cardHolderName: '',
     linkedBankName: '',
     isDefault: false,
 };
@@ -25,6 +38,19 @@ const METHOD_ICON: Record<PaymentMethodType, string> = {
     NETBANKING: '🏛️',
 };
 
+// Must match PaymentValidationService.SUPPORTED_BANKS on the server, or
+// net banking payments will always fail bank-name validation.
+const NETBANKING_BANKS = [
+    'HDFC Bank',
+    'ICICI Bank',
+    'State Bank of India',
+    'Axis Bank',
+    'Kotak Mahindra Bank',
+    'Punjab National Bank',
+    'Bank of Baroda',
+    'Yes Bank',
+];
+
 export default function AddPaymentMethod() {
     const { user, bankAccounts, paymentMethods, refresh } = useUserSession();
     const [modalOpen, setModalOpen] = useState(false);
@@ -33,11 +59,31 @@ export default function AddPaymentMethod() {
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState<string | null>(null);
 
+    const [editingMethod, setEditingMethod] = useState<PaymentMethodEntity | null>(
+        null,
+    );
+    const [editForm, setEditForm] = useState<UpdatePaymentMethodRequest>(
+        EMPTY_EDIT_FORM,
+    );
+    const [editErrors, setEditErrors] = useState<string[]>([]);
+    const [editSubmitting, setEditSubmitting] = useState(false);
+
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
     function update<K extends keyof CreatePaymentMethodRequest>(
         key: K,
         value: CreatePaymentMethodRequest[K],
     ) {
         setForm((f) => ({ ...f, [key]: value }));
+    }
+
+    function updateEdit<K extends keyof UpdatePaymentMethodRequest>(
+        key: K,
+        value: UpdatePaymentMethodRequest[K],
+    ) {
+        setEditForm((f) => ({ ...f, [key]: value }));
     }
 
     if (!user) {
@@ -82,6 +128,62 @@ export default function AddPaymentMethod() {
             );
         } finally {
             setSubmitting(false);
+        }
+    }
+
+    function openEditModal(method: PaymentMethodEntity) {
+        setEditingMethod(method);
+        setEditForm({
+            upiId: method.upiId ?? '',
+            cardNumber: '',
+            cardExpiry: method.cardExpiry ?? '',
+            cardHolderName: method.cardHolderName ?? '',
+            linkedBankName: method.linkedBankName ?? '',
+            isDefault: method.default,
+        });
+        setEditErrors([]);
+        setSuccess(null);
+    }
+
+    async function handleEditSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (!editingMethod) return;
+        setEditErrors([]);
+        setEditSubmitting(true);
+        try {
+            await usersApi.updatePaymentMethod(
+                user!.id,
+                editingMethod.id,
+                editForm,
+            );
+            await refresh();
+            setEditingMethod(null);
+            setSuccess('Payment method updated.');
+        } catch (err) {
+            const data = (err as AxiosError<ApiErrorResponse>).response?.data;
+            setEditErrors(
+                data?.details && data.details.length > 0
+                    ? data.details
+                    : [data?.message ?? 'Failed to update payment method'],
+            );
+        } finally {
+            setEditSubmitting(false);
+        }
+    }
+
+    async function handleDelete(methodId: number) {
+        setDeleteError(null);
+        setDeleting(true);
+        try {
+            await usersApi.deletePaymentMethod(user!.id, methodId);
+            await refresh();
+            setDeletingId(null);
+            setSuccess('Payment method removed.');
+        } catch (err) {
+            const data = (err as AxiosError<ApiErrorResponse>).response?.data;
+            setDeleteError(data?.message ?? 'Failed to remove payment method');
+        } finally {
+            setDeleting(false);
         }
     }
 
@@ -134,7 +236,7 @@ export default function AddPaymentMethod() {
                         const account = bankAccounts.find(
                             (a) => a.id === m.bankAccountId,
                         );
-                        return (
+        return (
                             <div
                                 key={m.id}
                                 className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
@@ -157,11 +259,32 @@ export default function AddPaymentMethod() {
                                             </p>
                                         </div>
                                     </div>
-                                    {m.default && (
-                                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
-                                            Default
-                                        </span>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {m.default && (
+                                            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                                                Default
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => openEditModal(m)}
+                                            title="Edit"
+                                            className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setDeleteError(null);
+                                                setDeletingId(m.id);
+                                            }}
+                                            title="Remove"
+                                            className="rounded-md p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                 </div>
                                 {account && (
                                     <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-sm">
@@ -171,6 +294,36 @@ export default function AddPaymentMethod() {
                                         <span className="font-semibold text-slate-800">
                                             {formatWithInrEquivalent(account.balance, 'INR')}
                                         </span>
+                                    </div>
+                                )}
+                                {deletingId === m.id && (
+                                    <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                        {deleteError && (
+                                            <p className="mb-2">{deleteError}</p>
+                                        )}
+                                        <p className="mb-2">
+                                            Remove this payment method?
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                disabled={deleting}
+                                                onClick={() => handleDelete(m.id)}
+                                                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                                            >
+                                                {deleting ? 'Removing…' : 'Yes, remove'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setDeletingId(null);
+                                                    setDeleteError(null);
+                                                }}
+                                                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -251,34 +404,75 @@ export default function AddPaymentMethod() {
                             </div>
                         )}
                         {form.type === 'CARD' && (
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-slate-600">
-                                    Card Number
-                                </label>
-                                <input
-                                    required
-                                    value={form.cardNumber}
-                                    onChange={(e) =>
-                                        update('cardNumber', e.target.value)
-                                    }
-                                    placeholder="4111 1111 1111 1111"
-                                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
-                                />
-                            </div>
+                            <>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-600">
+                                        Card Number
+                                    </label>
+                                    <input
+                                        required
+                                        value={form.cardNumber}
+                                        onChange={(e) =>
+                                            update('cardNumber', e.target.value)
+                                        }
+                                        placeholder="4111 1111 1111 1111"
+                                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-600">
+                                        Card Holder Name
+                                    </label>
+                                    <input
+                                        required
+                                        value={form.cardHolderName}
+                                        onChange={(e) =>
+                                            update('cardHolderName', e.target.value)
+                                        }
+                                        placeholder="Jane Doe"
+                                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-600">
+                                        Card Expiry (MM/YYYY)
+                                    </label>
+                                    <input
+                                        required
+                                        value={form.cardExpiry}
+                                        onChange={(e) =>
+                                            update('cardExpiry', e.target.value)
+                                        }
+                                        placeholder="12/2028"
+                                        pattern="(0[1-9]|1[0-2])/[0-9]{4}"
+                                        title="Format: MM/YYYY"
+                                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                    />
+                                </div>
+                            </>
                         )}
                         {form.type === 'NETBANKING' && (
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-slate-600">
                                     Linked Bank Name
                                 </label>
-                                <input
+                                <select
                                     required
                                     value={form.linkedBankName}
                                     onChange={(e) =>
                                         update('linkedBankName', e.target.value)
                                     }
                                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
-                                />
+                                >
+                                    <option value="" disabled>
+                                        Select a bank
+                                    </option>
+                                    {NETBANKING_BANKS.map((bank) => (
+                                        <option key={bank} value={bank}>
+                                            {bank}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         )}
 
@@ -302,6 +496,146 @@ export default function AddPaymentMethod() {
                         {submitting ? 'Adding…' : 'Add Payment Method'}
                     </button>
                 </form>
+            </Modal>
+
+            <Modal
+                open={editingMethod !== null}
+                onClose={() => setEditingMethod(null)}
+                title="Edit Payment Method"
+                icon="✏️"
+            >
+                {editingMethod && (
+                    <form onSubmit={handleEditSubmit}>
+                        {editErrors.length > 0 && (
+                            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <ul className="list-inside list-disc">
+                                    {editErrors.map((msg) => (
+                                        <li key={msg}>{msg}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <p className="text-sm text-slate-500">
+                                Type:{' '}
+                                <span className="font-semibold text-slate-700">
+                                    {editingMethod.type}
+                                </span>
+                            </p>
+
+                            {editingMethod.type === 'UPI' && (
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-600">
+                                        UPI ID
+                                    </label>
+                                    <input
+                                        required
+                                        value={editForm.upiId}
+                                        onChange={(e) =>
+                                            updateEdit('upiId', e.target.value)
+                                        }
+                                        placeholder="name@bank"
+                                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                    />
+                                </div>
+                            )}
+                            {editingMethod.type === 'CARD' && (
+                                <>
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                                            New Card Number
+                                        </label>
+                                        <input
+                                            value={editForm.cardNumber}
+                                            onChange={(e) =>
+                                                updateEdit('cardNumber', e.target.value)
+                                            }
+                                            placeholder={`Leave blank to keep •••• ${editingMethod.cardLast4}`}
+                                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                                            Card Holder Name
+                                        </label>
+                                        <input
+                                            required
+                                            value={editForm.cardHolderName}
+                                            onChange={(e) =>
+                                                updateEdit('cardHolderName', e.target.value)
+                                            }
+                                            placeholder="Jane Doe"
+                                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                                            Card Expiry (MM/YYYY)
+                                        </label>
+                                        <input
+                                            required
+                                            value={editForm.cardExpiry}
+                                            onChange={(e) =>
+                                                updateEdit('cardExpiry', e.target.value)
+                                            }
+                                            placeholder="12/2028"
+                                            pattern="(0[1-9]|1[0-2])/[0-9]{4}"
+                                            title="Format: MM/YYYY"
+                                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            {editingMethod.type === 'NETBANKING' && (
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-slate-600">
+                                        Linked Bank Name
+                                    </label>
+                                    <select
+                                        required
+                                        value={editForm.linkedBankName}
+                                        onChange={(e) =>
+                                            updateEdit(
+                                                'linkedBankName',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                                    >
+                                        <option value="" disabled>
+                                            Select a bank
+                                        </option>
+                                        {NETBANKING_BANKS.map((bank) => (
+                                            <option key={bank} value={bank}>
+                                                {bank}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <label className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    checked={editForm.isDefault}
+                                    onChange={(e) =>
+                                        updateEdit('isDefault', e.target.checked)
+                                    }
+                                />
+                                Set as default method
+                            </label>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={editSubmitting}
+                            className="mt-5 w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                            {editSubmitting ? 'Saving…' : 'Save Changes'}
+                        </button>
+                    </form>
+                )}
             </Modal>
         </div>
     );

@@ -122,11 +122,22 @@ public class PaymentValidationService {
 
         // Credit card validation
         if ("CREDIT_CARD".equals(payment.getPaymentMethod())) {
-            String cardNumber = payment.getCardNumber();
-            if (cardNumber == null || cardNumber.isBlank()) {
-                errors.add("Card number is required for credit card payments");
-            } else if (!isValidLuhn(cardNumber)) {
-                errors.add("Card number is invalid");
+            // Raw card number is only present for the legacy "enter full card
+            // details every time" flow. When paying via a saved payment
+            // method, the raw number is never available (only masked
+            // cardLast4/cardToken are persisted) - it was already Luhn
+            // validated once, when the card was added (see UserService).
+            if (payment.getSourcePaymentMethodId() != null) {
+                if (payment.getCardLast4() == null || payment.getCardLast4().isBlank()) {
+                    errors.add("Saved card details are missing - please re-add the card");
+                }
+            } else {
+                String cardNumber = payment.getCardNumber();
+                if (cardNumber == null || cardNumber.isBlank()) {
+                    errors.add("Card number is required for credit card payments");
+                } else if (!isValidLuhn(cardNumber)) {
+                    errors.add("Card number is invalid");
+                }
             }
 
             if (payment.getCardHolderName() == null || payment.getCardHolderName().isBlank()) {
@@ -168,7 +179,7 @@ public class PaymentValidationService {
         return new ValidationResult(errors.isEmpty(), errors);
     }
 
-    private static boolean isValidLuhn(String cardNumber) {
+    static boolean isValidLuhn(String cardNumber) {
         String digits = cardNumber.replaceAll("\\D", "");
         if (digits.length() < 12 || digits.length() > 19) {
             return false;
