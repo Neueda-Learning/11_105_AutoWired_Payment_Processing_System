@@ -139,7 +139,6 @@ public class AuthenticationService {
         }
     }
 
-    @Transactional
     // noRollbackFor: on OTP expiry / max attempts exceeded, failAuthentication()
     // intentionally persists a FAILED status + audit history row before this
     // method throws. Without this, Spring's default rollback-on-RuntimeException
