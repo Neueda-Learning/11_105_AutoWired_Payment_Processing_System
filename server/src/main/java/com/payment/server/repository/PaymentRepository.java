@@ -111,6 +111,31 @@ public class PaymentRepository {
         jdbcTemplate.update(sql, riskScore, id);
     }
 
+    public void updateAuthenticationStatus(int id, String authenticationStatus) {
+        String sql = "UPDATE payments SET authentication_status = ? WHERE id = ?";
+        jdbcTemplate.update(sql, authenticationStatus, id);
+    }
+
+    public void updateFee(int id, java.math.BigDecimal feeAmount, java.math.BigDecimal feePercentage,
+            java.math.BigDecimal netAmount) {
+        String sql = "UPDATE payments SET fee_amount = ?, fee_percentage = ?, net_amount = ? WHERE id = ?";
+        jdbcTemplate.update(sql, feeAmount, feePercentage, netAmount, id);
+    }
+
+    public java.math.BigDecimal sumAmountByPayerUserIdSince(int payerUserId, LocalDateTime since) {
+        String sql = "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payer_user_id = ? AND created_at > ?";
+        java.math.BigDecimal sum = jdbcTemplate.queryForObject(sql, java.math.BigDecimal.class, payerUserId,
+                java.sql.Timestamp.valueOf(since));
+        return sum == null ? java.math.BigDecimal.ZERO : sum;
+    }
+
+    public java.math.BigDecimal averageAmountByPayerUserIdExcluding(Integer payerUserId, int excludedPaymentId) {
+        String sql = "SELECT AVG(amount) FROM payments WHERE payer_user_id = ? AND id <> ?";
+        java.math.BigDecimal avg = jdbcTemplate.queryForObject(sql, java.math.BigDecimal.class, payerUserId,
+                excludedPaymentId);
+        return avg;
+    }
+
     public long countRecentByAccount(String sourceAccount, LocalDateTime since) {
         String sql = "SELECT COUNT(*) FROM payments WHERE source_account = ? AND created_at > ?";
         Long count = jdbcTemplate.queryForObject(sql, Long.class, sourceAccount, java.sql.Timestamp.valueOf(since));
