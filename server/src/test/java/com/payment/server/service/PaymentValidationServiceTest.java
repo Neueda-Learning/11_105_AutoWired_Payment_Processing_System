@@ -1,6 +1,5 @@
 package com.payment.server.service;
 
-
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -17,7 +16,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.payment.server.model.Customer;
 import com.payment.server.model.Payment;
+import com.payment.server.repository.BankAccountRepository;
 import com.payment.server.repository.CustomerRepository;
+import com.payment.server.repository.PaymentRepository;
+import com.payment.server.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentValidationServiceTest {
@@ -25,9 +27,19 @@ class PaymentValidationServiceTest {
     @Mock
     private CustomerRepository customerRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private PaymentRepository paymentRepository;
+
+    @Mock
+    private BankAccountRepository bankAccountRepository;
+
     @Test
     void validateReturnsValidForSupportedCurrencyDifferentAccountsAndKnownCustomers() {
-        PaymentValidationService service = new PaymentValidationService(customerRepository);
+        PaymentValidationService service = new PaymentValidationService(customerRepository, userRepository,
+                paymentRepository, bankAccountRepository);
         Payment payment = buildPayment("ACC-111", "ACC-222", "usd", "2500.00");
 
         when(customerRepository.findByAccountNumber("ACC-111")).thenReturn(new Customer("Alice", "ACC-111", "IN"));
@@ -41,10 +53,12 @@ class PaymentValidationServiceTest {
 
     @Test
     void validateCollectsAllApplicableErrors() {
-        PaymentValidationService service = new PaymentValidationService(customerRepository);
+        PaymentValidationService service = new PaymentValidationService(customerRepository, userRepository,
+                paymentRepository, bankAccountRepository);
         Payment payment = buildPayment("ACC-111", "ACC-111", "zzz", "-5.00");
 
         when(customerRepository.findByAccountNumber(anyString())).thenReturn(null);
+        when(bankAccountRepository.findByAccountNumber(anyString())).thenReturn(null);
 
         PaymentValidationService.ValidationResult result = service.validate(payment);
 
@@ -58,7 +72,8 @@ class PaymentValidationServiceTest {
 
     @Test
     void validateFailsWhenAccountsMissingWithoutRepositoryLookup() {
-        PaymentValidationService service = new PaymentValidationService(customerRepository);
+        PaymentValidationService service = new PaymentValidationService(customerRepository, userRepository,
+                paymentRepository, bankAccountRepository);
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("10.00"));
         payment.setCurrency("USD");

@@ -1,0 +1,209 @@
+package com.payment.server.service;
+
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.payment.server.dto.AuthenticatePaymentRequest;
+import com.payment.server.dto.InitiatePaymentRequest;
+import com.payment.server.exception.AuthChallengeExpiredException;
+import com.payment.server.exception.AuthenticationFailedException;
+import com.payment.server.exception.OtpResendLimitExceededException;
+import com.payment.server.exception.UserNotFoundException;
+import com.payment.server.model.AuthChallenge;
+import com.payment.server.model.Payment;
+import com.payment.server.model.User;
+import com.payment.server.repository.AuthChallengeRepository;
+import com.payment.server.repository.UserRepository;
+
+/**
+ * PIN/OTP authentication gate that sits inside the CREATED phase, before
+ * validation runs - proves the payer is really them before money moves.
+ * See payment-system-v2-design.md section 5 (Sprint B).
+ */
+@Service
+public class AuthenticationService {
+
+    private static final int OTP_EXPIRY_MINUTES = 5;
+    private static final int DEFAULT_MAX_ATTEMPTS = 3;
+    // Rate-limits abuse of the resend endpoint - see
+    // payment-system-v2-design.md section 10 (OTP hygiene).
+    private static final int MAX_OTP_RESENDS = 3;
+
+    private final PaymentService paymentService;
+    private final AuthChallengeRepository authChallengeRepository;
+    private final UserRepository userRepository;
+
+    public AuthenticationService(PaymentService paymentService,
+            AuthChallengeRepository authChallengeRepository,
+            UserRepository userRepository) {
+        this.paymentService = paymentService;
+        this.authChallengeRepository = authChallengeRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Transactional
+    public Payment initiatePayment(InitiatePaymentRequest request) {
+        User payer = userRepository.findById(request.getPayerUserId());
+        if (payer == null) {
+            throw new UserNotFoundException(request.getPayerUserId());
+        }
+
+        Payment payment = new Payment();
+        payment.setPayerUserId(request.getPayerUserId());
+        payment.setPayeeUserId(request.getPayeeUserId());
+        payment.setSourceAccount(request.getSourceAccount());
+        payment.setDestinationAccount(request.getDestinationAccount());
+        payment.setSourcePaymentMethodId(request.getSourcePaymentMethodId());
+        payment.setAmount(request.getAmount());
+        payment.setGrossAmount(request.getAmount());
+        payment.setCurrency(request.getCurrency());
+        payment.setPaymentMethod(request.getPaymentMethod());
+        payment.setReference(request.getReference());
+        payment.setIdempotencyKey(request.getIdempotencyKey());
+
+        if ("CREDIT_CARD".equals(request.getPaymentMethod())) {
+            payment.setCardNumber(request.getCardNumber());
+            payment.setCardHolderName(request.getCardHolderName());
+            payment.setCardExpiry(request.getCardExpiry());
+            if (request.getCardNumber() != null) {
+                String digitsOnly = request.getCardNumber().replaceAll("\\D", "");
+                if (digitsOnly.length() >= 4) {
+                    payment.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
+                }
+            }
+        } else if ("UPI".equals(request.getPaymentMethod())) {
+            payment.setUpiId(request.getUpiId());
+        } else if ("NETBANKING".equals(request.getPaymentMethod())) {
+            payment.setBankName(request.getBankName());
+        }
+
+        Payment created = paymentService.createPendingPayment(payment);
+
+        AuthChallenge challenge = new AuthChallenge();
+        challenge.setPaymentId(created.getId());
+        challenge.setMethod(request.getAuthMethod());
+        challenge.setAttempts(0);
+        challenge.setMaxAttempts(DEFAULT_MAX_ATTEMPTS);
+        challenge.setStatus(AuthChallenge.STATUS_PENDING);
+
+        if (AuthChallenge.METHOD_OTP.equals(request.getAuthMethod())) {
+            String otp = generateOtp();
+            challenge.setCodeHash(OtpHashUtil.hash(otp));
+            challenge.setExpiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
+            // Email delivery is simulated (stand-in for SMS per the design doc) -
+            // a real system would call an email/SMS provider here instead.
+            System.out.printf("[AuthenticationService] Simulated OTP email to %s: %s (expires in %d min)%n",
+                    payer.getEmail(), otp, OTP_EXPIRY_MINUTES);
+        }
+
+        authChallengeRepository.save(challenge);
+        return created;
+    }
+
+    @Transactional
+    public Payment authenticate(int paymentId, AuthenticatePaymentRequest request) {
+        Payment payment = paymentService.getPaymentById(paymentId);
+        AuthChallenge challenge = authChallengeRepository.findLatestByPaymentId(paymentId);
+
+        if (challenge == null || !AuthChallenge.STATUS_PENDING.equals(challenge.getStatus())) {
+            throw new AuthChallengeExpiredException(paymentId);
+        }
+
+        if (AuthChallenge.METHOD_OTP.equals(challenge.getMethod())
+                && challenge.getExpiresAt() != null
+                && LocalDateTime.now().isAfter(challenge.getExpiresAt())) {
+            authChallengeRepository.updateStatus(challenge.getId(), AuthChallenge.STATUS_EXPIRED);
+            paymentService.failAuthentication(paymentId, "OTP expired");
+            throw new AuthChallengeExpiredException(paymentId);
+        }
+
+        if (verifyCode(challenge, payment, request)) {
+            authChallengeRepository.updateStatus(challenge.getId(), AuthChallenge.STATUS_VERIFIED);
+            return paymentService.completeAuthenticatedPayment(paymentId);
+        }
+
+        authChallengeRepository.incrementAttempts(challenge.getId());
+        int attemptsUsed = challenge.getAttempts() + 1;
+        int attemptsRemaining = challenge.getMaxAttempts() - attemptsUsed;
+
+        if (attemptsRemaining <= 0) {
+            authChallengeRepository.updateStatus(challenge.getId(), AuthChallenge.STATUS_FAILED);
+            paymentService.failAuthentication(paymentId, "Max authentication attempts exceeded");
+            throw new AuthenticationFailedException(paymentId, 0, true);
+        }
+
+        throw new AuthenticationFailedException(paymentId, attemptsRemaining, false);
+    }
+
+    /**
+     * Re-sends an OTP for a payment whose challenge is still pending -
+     * expires the old challenge and issues a fresh code. Rate-limited to
+     * MAX_OTP_RESENDS total challenges per payment to prevent abuse.
+     * See payment-system-v2-design.md section 8 & 10.
+     */
+    @Transactional
+    public Payment resendOtp(int paymentId) {
+        Payment payment = paymentService.getPaymentById(paymentId);
+        AuthChallenge challenge = authChallengeRepository.findLatestByPaymentId(paymentId);
+
+        if (challenge == null || !AuthChallenge.METHOD_OTP.equals(challenge.getMethod())
+                || !AuthChallenge.STATUS_PENDING.equals(challenge.getStatus())) {
+            throw new AuthChallengeExpiredException(paymentId);
+        }
+
+        if (authChallengeRepository.countByPaymentId(paymentId) >= MAX_OTP_RESENDS) {
+            throw new OtpResendLimitExceededException(paymentId);
+        }
+
+        if (payment.getPayerUserId() == null) {
+            throw new UserNotFoundException(paymentId);
+        }
+        User payer = userRepository.findById(payment.getPayerUserId());
+        if (payer == null) {
+            throw new UserNotFoundException(payment.getPayerUserId());
+        }
+
+        // Expire the old challenge and issue a brand new one.
+        authChallengeRepository.updateStatus(challenge.getId(), AuthChallenge.STATUS_EXPIRED);
+
+        AuthChallenge newChallenge = new AuthChallenge();
+        newChallenge.setPaymentId(paymentId);
+        newChallenge.setMethod(AuthChallenge.METHOD_OTP);
+        newChallenge.setAttempts(0);
+        newChallenge.setMaxAttempts(DEFAULT_MAX_ATTEMPTS);
+        newChallenge.setStatus(AuthChallenge.STATUS_PENDING);
+
+        String otp = generateOtp();
+        newChallenge.setCodeHash(OtpHashUtil.hash(otp));
+        newChallenge.setExpiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
+        System.out.printf("[AuthenticationService] Simulated OTP resend email to %s: %s (expires in %d min)%n",
+                payer.getEmail(), otp, OTP_EXPIRY_MINUTES);
+
+        authChallengeRepository.save(newChallenge);
+        return payment;
+    }
+
+    private boolean verifyCode(AuthChallenge challenge, Payment payment, AuthenticatePaymentRequest request) {
+        if (AuthChallenge.METHOD_PIN.equals(challenge.getMethod())) {
+            if (payment.getPayerUserId() == null || request.getPin() == null) {
+                return false;
+            }
+            User payer = userRepository.findById(payment.getPayerUserId());
+            return payer != null && payer.getPinHash() != null
+                    && OtpHashUtil.matches(request.getPin(), payer.getPinHash());
+        }
+        if (AuthChallenge.METHOD_OTP.equals(challenge.getMethod())) {
+            return request.getOtp() != null && challenge.getCodeHash() != null
+                    && OtpHashUtil.matches(request.getOtp(), challenge.getCodeHash());
+        }
+        return false;
+    }
+
+    private String generateOtp() {
+        int code = new SecureRandom().nextInt(900000) + 100000;
+        return String.valueOf(code);
+    }
+}

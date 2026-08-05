@@ -31,6 +31,16 @@ public class SchemaMigrationRunner implements CommandLineRunner {
         addColumnIfMissing("payments", "card_expiry", "VARCHAR(7)");
         addColumnIfMissing("payments", "upi_id", "VARCHAR(255)");
         addColumnIfMissing("payments", "bank_name", "VARCHAR(100)");
+        addColumnIfMissing("payments", "fee_amount", "DECIMAL(19,2)");
+        addColumnIfMissing("payments", "fee_percentage", "DECIMAL(10,4)");
+        addColumnIfMissing("payments", "net_amount", "DECIMAL(19,2)");
+        addColumnIfMissing("payments", "payer_user_id", "INT");
+        addColumnIfMissing("payments", "payee_user_id", "INT");
+        addColumnIfMissing("payments", "source_payment_method_id", "INT");
+        addColumnIfMissing("payments", "gross_amount", "DECIMAL(19,2)");
+        addColumnIfMissing("payments", "authentication_status", "VARCHAR(20)");
+        addColumnIfMissing("users", "daily_limit", "DECIMAL(19,2)");
+        addColumnIfMissing("users", "country", "VARCHAR(10)");
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {

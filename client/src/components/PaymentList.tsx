@@ -1,5 +1,6 @@
 import type { Payment, PaymentStatus } from '../types/payment';
 import StatusBadge from './StatusBadge';
+import { formatWithInrEquivalent } from '../utils/currency';
 
 const STATUS_OPTIONS: (PaymentStatus | 'ALL')[] = [
     'ALL',
@@ -43,7 +44,9 @@ export default function PaymentList({
     return (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-lg font-semibold text-slate-800">Payments</h2>
+                <h2 className="text-lg font-semibold text-slate-800">
+                    💳 Payments
+                </h2>
                 <div className="flex flex-wrap gap-2">
                     <input
                         value={search}
@@ -89,7 +92,7 @@ export default function PaymentList({
                                     #{p.id}
                                 </td>
                                 <td className="px-4 py-2.5 text-slate-600">
-                                    {p.amount.toFixed(2)} {p.currency}
+                                    {formatWithInrEquivalent(p.amount, p.currency)}
                                 </td>
                                 <td className="px-4 py-2.5">
                                     <StatusBadge status={p.status} />
