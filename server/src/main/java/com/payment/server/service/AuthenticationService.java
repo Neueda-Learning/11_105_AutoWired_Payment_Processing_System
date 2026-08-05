@@ -103,7 +103,12 @@ public class AuthenticationService {
         return created;
     }
 
-    @Transactional
+    // noRollbackFor: on OTP expiry / max attempts exceeded, failAuthentication()
+    // intentionally persists a FAILED status + audit history row before this
+    // method throws. Without this, Spring's default rollback-on-RuntimeException
+    // would wipe out that FAILED payment entirely (see PaymentService.createPayment
+    // for the same pattern).
+    @Transactional(noRollbackFor = { AuthenticationFailedException.class, AuthChallengeExpiredException.class })
     public Payment authenticate(int paymentId, AuthenticatePaymentRequest request) {
         Payment payment = paymentService.getPaymentById(paymentId);
         AuthChallenge challenge = authChallengeRepository.findLatestByPaymentId(paymentId);
