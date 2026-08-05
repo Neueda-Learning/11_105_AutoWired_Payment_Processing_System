@@ -26,6 +26,7 @@ interface FormState {
     currency: string;
     authMethod: AuthMethod;
     reference: string;
+    cvv: string;
 }
 
 export default function MakePayment() {
@@ -42,6 +43,7 @@ export default function MakePayment() {
         currency: DEFAULT_CURRENCY,
         authMethod: 'PIN',
         reference: '',
+        cvv: '',
     });
     const [errors, setErrors] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -126,6 +128,10 @@ export default function MakePayment() {
             setErrors(['Please select a destination account.']);
             return;
         }
+        if (selectedMethod.type === 'CARD' && !/^\d{3,4}$/.test(form.cvv)) {
+            setErrors(['Please enter a valid 3-4 digit CVV for this card.']);
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -142,7 +148,11 @@ export default function MakePayment() {
                 idempotencyKey: newIdempotencyKey(),
                 authMethod: form.authMethod,
                 upiId: selectedMethod.upiId,
-                bankName: selectedDestination.bankName,
+                bankName:
+                    selectedMethod.type === 'NETBANKING'
+                        ? selectedMethod.linkedBankName
+                        : undefined,
+                cvv: selectedMethod.type === 'CARD' ? form.cvv : undefined,
             };
 
             const payment = await authApi.initiate(payload);
@@ -346,6 +356,31 @@ export default function MakePayment() {
                         })}
                     </select>
                 </div>
+
+                {paymentMethods.find((m) => m.id === form.sourcePaymentMethodId)
+                    ?.type === 'CARD' && (
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-600">
+                            CVV
+                        </label>
+                        <input
+                            required
+                            type="password"
+                            inputMode="numeric"
+                            autoComplete="cc-csc"
+                            maxLength={4}
+                            value={form.cvv}
+                            onChange={(e) =>
+                                update(
+                                    'cvv',
+                                    e.target.value.replace(/\D/g, '').slice(0, 4),
+                                )
+                            }
+                            placeholder="3-4 digit security code"
+                            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 focus:outline-none"
+                        />
+                    </div>
+                )}
 
                 <div>
                     <label className="mb-1 block text-sm font-medium text-slate-600">

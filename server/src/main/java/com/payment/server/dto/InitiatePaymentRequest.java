@@ -50,6 +50,13 @@ public class InitiatePaymentRequest {
     private String cardNumber;
     private String cardExpiry;
     private String cardHolderName;
+
+    // Only required when paymentMethod == CREDIT_CARD. Verified once at
+    // initiate-time (see AuthenticationService) and never persisted anywhere
+    // - it must never be stored on the Payment entity or in the database.
+    @Pattern(regexp = "\\d{3,4}", message = "cvv must be 3-4 digits")
+    private String cvv;
+
     private String upiId;
     private String bankName;
 
@@ -163,6 +170,14 @@ public class InitiatePaymentRequest {
 
     public void setCardHolderName(String cardHolderName) {
         this.cardHolderName = cardHolderName;
+    }
+
+    public String getCvv() {
+        return cvv;
+    }
+
+    public void setCvv(String cvv) {
+        this.cvv = cvv;
     }
 
     public String getUpiId() {

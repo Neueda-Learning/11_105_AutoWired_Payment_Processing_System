@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import com.payment.server.dto.CreateBankAccountRequest;
 import com.payment.server.dto.CreatePaymentMethodRequest;
 import com.payment.server.dto.CreateUserRequest;
+import com.payment.server.dto.UpdatePaymentMethodRequest;
 import com.payment.server.dto.UpdatePinRequest;
 import com.payment.server.exception.BankAccountNotFoundException;
 import com.payment.server.exception.DuplicateUserException;
 import com.payment.server.exception.IncorrectPinException;
+import com.payment.server.exception.PaymentMethodNotFoundException;
 import com.payment.server.exception.UserNotFoundException;
 import com.payment.server.model.BankAccount;
 import com.payment.server.model.PaymentMethod;
@@ -131,13 +133,15 @@ public class UserService {
         method.setLinkedBankName(request.getLinkedBankName());
         method.setDefault(request.isDefault());
 
-        if (request.getCardNumber() != null && !request.getCardNumber().isBlank()) {
+        if (PaymentMethod.TYPE_CARD.equals(request.getType())) {
+            validateCardDetails(request.getCardNumber(), request.getCardExpiry(), request.getCardHolderName());
+
             String digitsOnly = request.getCardNumber().replaceAll("\\D", "");
-            if (digitsOnly.length() >= 4) {
-                method.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
-            }
+            method.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
             // Opaque token only - raw card number is never persisted.
             method.setCardToken(OtpHashUtil.hash(request.getCardNumber()));
+            method.setCardExpiry(request.getCardExpiry());
+            method.setCardHolderName(request.getCardHolderName());
         }
 
         if (request.isDefault()) {
@@ -146,5 +150,119 @@ public class UserService {
 
         paymentMethodRepository.save(method);
         return method;
+    }
+
+    /**
+     * Validates card details supplied when adding/editing a CARD payment
+     * method. The raw card number is only ever seen here (and briefly during
+     * legacy raw-entry payments) - it is Luhn-checked once and then
+     * discarded, never persisted.
+     */
+    private void validateCardDetails(String cardNumber, String cardExpiry, String cardHolderName) {
+        List<String> errors = new java.util.ArrayList<>();
+
+        if (cardNumber == null || cardNumber.isBlank()) {
+            errors.add("cardNumber is required for CARD payment methods");
+        } else if (!PaymentValidationService.isValidLuhn(cardNumber)) {
+            errors.add("cardNumber is invalid");
+        }
+
+        errors.addAll(validateCardExpiryAndHolder(cardExpiry, cardHolderName));
+
+        if (!errors.isEmpty()) {
+            throw new com.payment.server.exception.PaymentValidationException(errors);
+        }
+    }
+
+    private List<String> validateCardExpiryAndHolder(String cardExpiry, String cardHolderName) {
+        List<String> errors = new java.util.ArrayList<>();
+
+        if (cardHolderName == null || cardHolderName.isBlank()) {
+            errors.add("cardHolderName is required for CARD payment methods");
+        }
+
+        if (cardExpiry == null || !cardExpiry.matches("(0[1-9]|1[0-2])/[0-9]{4}")) {
+            errors.add("cardExpiry must be in MM/YYYY format");
+        } else {
+            String[] parts = cardExpiry.split("/");
+            java.time.YearMonth expiryMonth = java.time.YearMonth.of(Integer.parseInt(parts[1]), Integer.parseInt(parts[0]));
+            if (expiryMonth.isBefore(java.time.YearMonth.now())) {
+                errors.add("Card has already expired");
+            }
+        }
+
+        return errors;
+    }
+
+    /**
+     * Finds a user's payment method by id, ensuring it belongs to them.
+     * Throws {@link PaymentMethodNotFoundException} if it doesn't exist or
+     * belongs to a different user (avoids leaking existence of other users'
+     * methods).
+     */
+    private PaymentMethod getOwnedPaymentMethod(int userId, int methodId) {
+        PaymentMethod method = paymentMethodRepository.findById(methodId);
+        if (method == null || method.getUserId() != userId) {
+            throw new PaymentMethodNotFoundException(methodId);
+        }
+        return method;
+    }
+
+    /**
+     * Edits the type-specific detail (upiId / cardNumber / linkedBankName)
+     * and/or default flag of an existing payment method. The method's type
+     * and underlying bank account are immutable once created.
+     */
+    public PaymentMethod updatePaymentMethod(int userId, int methodId, UpdatePaymentMethodRequest request) {
+        getUserById(userId);
+        PaymentMethod method = getOwnedPaymentMethod(userId, methodId);
+
+        if (PaymentMethod.TYPE_UPI.equals(method.getType())) {
+            method.setUpiId(request.getUpiId());
+        } else if (PaymentMethod.TYPE_CARD.equals(method.getType())) {
+            // Expiry/holder name can be edited on their own, but if the card
+            // number itself is being replaced it must pass the same checks
+            // as when the method was first added.
+            String cardExpiry = request.getCardExpiry() != null ? request.getCardExpiry() : method.getCardExpiry();
+            String cardHolderName = request.getCardHolderName() != null ? request.getCardHolderName()
+                    : method.getCardHolderName();
+
+            if (request.getCardNumber() != null && !request.getCardNumber().isBlank()) {
+                validateCardDetails(request.getCardNumber(), cardExpiry, cardHolderName);
+                String digitsOnly = request.getCardNumber().replaceAll("\\D", "");
+                method.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
+                // Opaque token only - raw card number is never persisted.
+                method.setCardToken(OtpHashUtil.hash(request.getCardNumber()));
+            } else if (request.getCardExpiry() != null || request.getCardHolderName() != null) {
+                List<String> errors = validateCardExpiryAndHolder(cardExpiry, cardHolderName);
+                if (!errors.isEmpty()) {
+                    throw new com.payment.server.exception.PaymentValidationException(errors);
+                }
+            }
+
+            method.setCardExpiry(cardExpiry);
+            method.setCardHolderName(cardHolderName);
+        } else if (PaymentMethod.TYPE_NETBANKING.equals(method.getType())) {
+            method.setLinkedBankName(request.getLinkedBankName());
+        }
+
+        method.setDefault(request.isDefault());
+        if (request.isDefault()) {
+            paymentMethodRepository.clearDefaultForUser(userId);
+        }
+
+        paymentMethodRepository.update(method);
+        return method;
+    }
+
+    /**
+     * Removes a payment method from a user's profile. Past payments keep
+     * their historical sourcePaymentMethodId reference (no FK constraint),
+     * so deleting a method never rewrites payment history.
+     */
+    public void deletePaymentMethod(int userId, int methodId) {
+        getUserById(userId);
+        getOwnedPaymentMethod(userId, methodId);
+        paymentMethodRepository.deleteById(methodId);
     }
 }

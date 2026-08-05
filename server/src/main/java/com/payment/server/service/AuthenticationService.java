@@ -2,6 +2,7 @@ package com.payment.server.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,11 +12,14 @@ import com.payment.server.dto.InitiatePaymentRequest;
 import com.payment.server.exception.AuthChallengeExpiredException;
 import com.payment.server.exception.AuthenticationFailedException;
 import com.payment.server.exception.OtpResendLimitExceededException;
+import com.payment.server.exception.PaymentValidationException;
 import com.payment.server.exception.UserNotFoundException;
 import com.payment.server.model.AuthChallenge;
 import com.payment.server.model.Payment;
+import com.payment.server.model.PaymentMethod;
 import com.payment.server.model.User;
 import com.payment.server.repository.AuthChallengeRepository;
+import com.payment.server.repository.PaymentMethodRepository;
 import com.payment.server.repository.UserRepository;
 
 /**
@@ -35,13 +39,16 @@ public class AuthenticationService {
     private final PaymentService paymentService;
     private final AuthChallengeRepository authChallengeRepository;
     private final UserRepository userRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
 
     public AuthenticationService(PaymentService paymentService,
             AuthChallengeRepository authChallengeRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            PaymentMethodRepository paymentMethodRepository) {
         this.paymentService = paymentService;
         this.authChallengeRepository = authChallengeRepository;
         this.userRepository = userRepository;
+        this.paymentMethodRepository = paymentMethodRepository;
     }
 
     @Transactional
@@ -65,13 +72,31 @@ public class AuthenticationService {
         payment.setIdempotencyKey(request.getIdempotencyKey());
 
         if ("CREDIT_CARD".equals(request.getPaymentMethod())) {
-            payment.setCardNumber(request.getCardNumber());
-            payment.setCardHolderName(request.getCardHolderName());
-            payment.setCardExpiry(request.getCardExpiry());
-            if (request.getCardNumber() != null) {
-                String digitsOnly = request.getCardNumber().replaceAll("\\D", "");
-                if (digitsOnly.length() >= 4) {
-                    payment.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
+            validateCvv(request.getCvv());
+
+            if (request.getSourcePaymentMethodId() != null) {
+                // Paying with a saved card - pull the safe (masked) details
+                // that were stored when the card was added. The raw card
+                // number is never available/stored here.
+                PaymentMethod method = paymentMethodRepository.findById(request.getSourcePaymentMethodId());
+                if (method == null || method.getUserId() != request.getPayerUserId()
+                        || !PaymentMethod.TYPE_CARD.equals(method.getType())) {
+                    throw new PaymentValidationException(List.of("Selected card payment method is invalid"));
+                }
+                payment.setCardHolderName(method.getCardHolderName());
+                payment.setCardExpiry(method.getCardExpiry());
+                payment.setCardLast4(method.getCardLast4());
+            } else {
+                // Legacy raw-entry path - full card details are supplied
+                // fresh with this request and never persisted beyond this.
+                payment.setCardNumber(request.getCardNumber());
+                payment.setCardHolderName(request.getCardHolderName());
+                payment.setCardExpiry(request.getCardExpiry());
+                if (request.getCardNumber() != null) {
+                    String digitsOnly = request.getCardNumber().replaceAll("\\D", "");
+                    if (digitsOnly.length() >= 4) {
+                        payment.setCardLast4(digitsOnly.substring(digitsOnly.length() - 4));
+                    }
                 }
             }
         } else if ("UPI".equals(request.getPaymentMethod())) {
@@ -101,6 +126,17 @@ public class AuthenticationService {
 
         authChallengeRepository.save(challenge);
         return created;
+    }
+
+    /**
+     * Confirms a CVV was supplied and looks like one (3-4 digits). The value
+     * itself is only ever held in this local variable/parameter - it is
+     * never attached to the Payment entity and never persisted anywhere.
+     */
+    private void validateCvv(String cvv) {
+        if (cvv == null || !cvv.matches("\\d{3,4}")) {
+            throw new PaymentValidationException(List.of("cvv must be 3-4 digits"));
+        }
     }
 
     @Transactional

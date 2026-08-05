@@ -1,57 +1,33 @@
 package com.payment.server.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 /**
- * Request body for {@code POST /api/users/{id}/payment-methods} - add a
- * UPI/card/net-banking method drawing from one of the user's bank accounts.
+ * Request body for {@code PUT /api/users/{id}/payment-methods/{methodId}} -
+ * edit an existing UPI/card/net-banking method. The {@code type} and
+ * {@code bankAccountId} of a method are immutable after creation; only the
+ * type-specific detail field(s) and the default flag can be changed.
  */
-public class CreatePaymentMethodRequest {
+public class UpdatePaymentMethodRequest {
 
-    @NotNull(message = "bankAccountId is required")
-    private Integer bankAccountId;
-
-    @NotBlank(message = "type is required")
-    @Pattern(regexp = "UPI|CARD|NETBANKING", message = "type must be UPI, CARD, or NETBANKING")
-    private String type;
-
-    // Only required when type == UPI.
+    // Only used when the method's type == UPI.
     private String upiId;
 
-    // Only required when type == CARD. Raw card number/token are never
-    // persisted here - only masked cardLast4 (+ opaque cardToken) are stored.
+    // Only used when the method's type == CARD. Raw card number/token are
+    // never persisted here - only masked cardLast4 (+ opaque cardToken) are
+    // recomputed and stored.
     private String cardNumber;
 
-    // Only required when type == CARD. Expiry and holder name are not
-    // sensitive on their own (unlike the raw number/CVV) so they're safe to
-    // persist and reuse at payment time.
+    // Only used when the method's type == CARD.
     @Pattern(regexp = "(0[1-9]|1[0-2])/[0-9]{4}", message = "cardExpiry must be in MM/YYYY format")
     private String cardExpiry;
 
     private String cardHolderName;
 
-    // Only required when type == NETBANKING.
+    // Only used when the method's type == NETBANKING.
     private String linkedBankName;
 
     private boolean isDefault;
-
-    public Integer getBankAccountId() {
-        return bankAccountId;
-    }
-
-    public void setBankAccountId(Integer bankAccountId) {
-        this.bankAccountId = bankAccountId;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
 
     public String getUpiId() {
         return upiId;

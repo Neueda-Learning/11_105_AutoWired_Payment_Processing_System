@@ -20,9 +20,15 @@ public class Payment {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Raw card details - used only in-memory for validation, never persisted
+    // Raw card number - used only in-memory for validation, never persisted
     // and never serialized in API responses. Cleared once validation runs.
     private String cardNumber;
+
+    // Card holder name is not sensitive on its own (unlike the raw number) -
+    // it IS persisted so it survives the DB round-trip between initiating a
+    // payment and completing PIN/OTP authentication (see AuthenticationService
+    // / PaymentService.completeAuthenticatedPayment). Still not serialized in
+    // API responses (@JsonIgnore below), just not stripped before persisting.
     private String cardHolderName;
 
     // Masked/non-sensitive card details - safe to persist and return.
