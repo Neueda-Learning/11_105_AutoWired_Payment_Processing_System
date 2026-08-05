@@ -41,9 +41,11 @@ class PaymentValidationServiceTest {
         PaymentValidationService service = new PaymentValidationService(customerRepository, userRepository,
                 paymentRepository, bankAccountRepository);
         Payment payment = buildPayment("ACC-111", "ACC-222", "usd", "2500.00");
+        payment.setUpiId("alice@upi"); // Required for UPI payments
 
         when(customerRepository.findByAccountNumber("ACC-111")).thenReturn(new Customer("Alice", "ACC-111", "IN"));
         when(customerRepository.findByAccountNumber("ACC-222")).thenReturn(new Customer("Bob", "ACC-222", "IN"));
+        when(bankAccountRepository.findByAccountNumber(anyString())).thenReturn(null);
 
         PaymentValidationService.ValidationResult result = service.validate(payment);
 
