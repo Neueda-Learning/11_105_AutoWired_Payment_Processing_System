@@ -14,26 +14,34 @@ pipeline {
             }
         }
 
+        stage('Prepare Environment File') {
+            steps {
+                // Keep secrets out of source and avoid workspace write-permission issues.
+                withCredentials([file(credentialsId: 'payment-processing-env', variable: 'ENV_FILE')]) {
+                    script {
+                        env.CI_ENV_FILE = sh(script: 'mktemp /tmp/payment-processing-env.XXXXXX', returnStdout: true).trim()
+                        sh 'cp "$ENV_FILE" "$CI_ENV_FILE"'
+                        sh 'chmod 600 "$CI_ENV_FILE"'
+                    }
+                }
+            }
+        }
+
         stage('Stop Existing Containers') {
             steps {
-                sh 'docker-compose down || true'
+                sh 'docker-compose --env-file "$CI_ENV_FILE" down || true'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                sh 'docker-compose build --no-cache'
+                sh 'docker-compose --env-file "$CI_ENV_FILE" build --no-cache'
             }
         }
 
         stage('Deploy') {
             steps {
-                // Pulls the real .env (DB_NAME/DB_USERNAME/DB_PASSWORD) from a Jenkins
-                // "Secret file" credential so it never lives in source control or the pipeline log.
-                withCredentials([file(credentialsId: 'payment-processing-env', variable: 'ENV_FILE')]) {
-                    sh 'cp "$ENV_FILE" .env'
-                    sh 'docker-compose up -d'
-                }
+                sh 'docker-compose --env-file "$CI_ENV_FILE" up -d'
             }
         }
 
@@ -41,6 +49,12 @@ pipeline {
             steps {
                 sh 'docker ps'
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'if [ -n "$CI_ENV_FILE" ] && [ -f "$CI_ENV_FILE" ]; then rm -f "$CI_ENV_FILE"; fi'
         }
     }
 }
