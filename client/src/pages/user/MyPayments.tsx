@@ -109,7 +109,11 @@ export default function MyPayments() {
                                     >
                                         <span>
                                             <span className="block font-medium text-slate-700">
-                                                #{p.id} — {formatWithInrEquivalent(p.amount, p.currency)}
+                                                #{p.id} —{' '}
+                                                {formatWithInrEquivalent(
+                                                    p.netAmount ?? p.amount,
+                                                    p.currency,
+                                                )}
                                             </span>
                                             <span className="block text-xs text-slate-400">
                                                 {new Date(p.createdAt).toLocaleString()}
