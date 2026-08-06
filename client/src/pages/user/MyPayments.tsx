@@ -38,18 +38,11 @@ export default function MyPayments() {
         );
     }
 
-    const mine = payments.filter((p) => {
-        const withUsers = p as Payment & {
-            payerUserId?: number;
-            payeeUserId?: number;
-        };
-        return (
-            withUsers.payerUserId === user.id || withUsers.payeeUserId === user.id
-        );
-    });
+    const mine = payments.filter(
+        (p) => p.payerUserId === user.id || p.payeeUserId === user.id,
+    );
 
-    const isSent = (p: Payment) =>
-        (p as Payment & { payerUserId?: number }).payerUserId === user.id;
+    const isSent = (p: Payment) => p.payerUserId === user.id;
 
     const completedCount = mine.filter((p) => p.status === 'COMPLETED').length;
     const pendingCount = mine.filter(
@@ -115,7 +108,15 @@ export default function MyPayments() {
                                             }`}
                                     >
                                         <span>
-                                            <span className="block font-medium text-slate-700">
+                                            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                                                <span
+                                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isSent(p)
+                                                        ? 'bg-slate-100 text-slate-600'
+                                                        : 'bg-teal-100 text-teal-700'
+                                                        }`}
+                                                >
+                                                    {isSent(p) ? 'Sent' : 'Received'}
+                                                </span>
                                                 #{p.id} —{' '}
                                                 {formatWithInrEquivalent(
                                                     p.netAmount ?? p.amount,
@@ -126,10 +127,10 @@ export default function MyPayments() {
                                                 {new Date(p.createdAt).toLocaleString()}
                                             </span>
                                             <StatusBadge status={p.status} />
-                                        </button>
-                                    </li>
-                                );
-                            })}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
                         </ul>
                     )}
                 </div>

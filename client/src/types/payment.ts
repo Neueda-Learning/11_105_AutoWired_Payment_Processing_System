@@ -24,6 +24,8 @@ export interface Payment {
     feeAmount?: number;
     feePercentage?: number;
     netAmount?: number;
+    payerUserId?: number;
+    payeeUserId?: number;
     createdAt: string;
     updatedAt: string;
 }
