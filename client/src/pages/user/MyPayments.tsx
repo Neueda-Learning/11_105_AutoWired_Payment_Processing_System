@@ -107,34 +107,23 @@ export default function MyPayments() {
                         </p>
                     ) : (
                         <ul className="max-h-130 divide-y divide-slate-100 overflow-y-auto">
-                            {mine.map((p) => {
-                                const sent = isSent(p);
-                                return (
-                                    <li key={p.id}>
-                                        <button
-                                            onClick={() => setSelectedId(p.id)}
-                                            className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition hover:bg-emerald-50/60 ${selectedId === p.id ? 'bg-emerald-50' : ''
-                                                }`}
-                                        >
-                                            <span>
-                                                <span className="block font-medium text-slate-700">
-                                                    <span
-                                                        className={`mr-1.5 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${sent
-                                                                ? 'bg-slate-100 text-slate-500'
-                                                                : 'bg-emerald-100 text-emerald-700'
-                                                            }`}
-                                                    >
-                                                        {sent ? 'Sent' : 'Received'}
-                                                    </span>
-                                                    #{p.id} —{' '}
-                                                    {formatWithInrEquivalent(
-                                                        sent ? (p.netAmount ?? p.amount) : p.amount,
-                                                        p.currency,
-                                                    )}
-                                                </span>
-                                                <span className="block text-xs text-slate-400">
-                                                    {new Date(p.createdAt).toLocaleString()}
-                                                </span>
+                            {mine.map((p) => (
+                                <li key={p.id}>
+                                    <button
+                                        onClick={() => setSelectedId(p.id)}
+                                        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition hover:bg-emerald-50/60 ${selectedId === p.id ? 'bg-emerald-50' : ''
+                                            }`}
+                                    >
+                                        <span>
+                                            <span className="block font-medium text-slate-700">
+                                                #{p.id} —{' '}
+                                                {formatWithInrEquivalent(
+                                                    p.netAmount ?? p.amount,
+                                                    p.currency,
+                                                )}
+                                            </span>
+                                            <span className="block text-xs text-slate-400">
+                                                {new Date(p.createdAt).toLocaleString()}
                                             </span>
                                             <StatusBadge status={p.status} />
                                         </button>
