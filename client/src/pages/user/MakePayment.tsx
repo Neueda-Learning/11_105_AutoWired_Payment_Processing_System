@@ -96,6 +96,26 @@ export default function MakePayment() {
         };
     }, []);
 
+    function methodTypeToPaymentMethod(
+        type: PaymentMethodType,
+    ): InitiatePaymentRequest['paymentMethod'] {
+        if (type === 'CARD') return 'CREDIT_CARD';
+        if (type === 'NETBANKING') return 'NETBANKING';
+        return 'UPI';
+    }
+
+    const selectedSourceMethod = paymentMethods.find(
+        (m) => m.id === form.sourcePaymentMethodId,
+    );
+    const feePreview = useMemo(() => {
+        if (form.amount === '' || !selectedSourceMethod) return null;
+        return calculateFeePreview(
+            feeRules,
+            methodTypeToPaymentMethod(selectedSourceMethod.type),
+            Number(form.amount),
+        );
+    }, [feeRules, form.amount, selectedSourceMethod]);
+
     if (!user) {
         return (
             <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 shadow-sm">
@@ -116,26 +136,6 @@ export default function MakePayment() {
     function update<K extends keyof FormState>(key: K, value: FormState[K]) {
         setForm((f) => ({ ...f, [key]: value }));
     }
-
-    function methodTypeToPaymentMethod(
-        type: PaymentMethodType,
-    ): InitiatePaymentRequest['paymentMethod'] {
-        if (type === 'CARD') return 'CREDIT_CARD';
-        if (type === 'NETBANKING') return 'NETBANKING';
-        return 'UPI';
-    }
-
-    const selectedSourceMethod = paymentMethods.find(
-        (m) => m.id === form.sourcePaymentMethodId,
-    );
-    const feePreview = useMemo(() => {
-        if (form.amount === '' || !selectedSourceMethod) return null;
-        return calculateFeePreview(
-            feeRules,
-            methodTypeToPaymentMethod(selectedSourceMethod.type),
-            Number(form.amount),
-        );
-    }, [feeRules, form.amount, selectedSourceMethod]);
 
     async function handleInitiate(e: React.FormEvent) {
         e.preventDefault();

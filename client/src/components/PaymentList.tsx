@@ -92,7 +92,6 @@ export default function PaymentList({
             return sortDirection === 'asc' ? cmp : -cmp;
         });
         return list;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filtered, sortKey, sortDirection]);
 
     return (
