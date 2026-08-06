@@ -116,7 +116,7 @@ export default function PaymentDetails({ paymentId }: Props) {
                                 ? ` (${payment.feePercentage.toFixed(2)}%)`
                                 : ''}
                         </dd>
-                        <dt className="text-slate-500">Net Amount</dt>
+                        <dt className="text-slate-500">Total Debited (incl. fee)</dt>
                         <dd className="text-right font-medium text-slate-800">
                             {payment.netAmount != null
                                 ? formatWithInrEquivalent(payment.netAmount, payment.currency)

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AxiosError } from 'axios';
 import { authApi } from '../../api/authApi';
 import { usersApi } from '../../api/usersApi';
+import { feeRulesApi } from '../../api/feeRulesApi';
 import { useUserSession } from '../../context/UserContext';
 import type { ApiErrorResponse, Payment } from '../../types/payment';
 import type {
@@ -9,9 +10,11 @@ import type {
     BankAccount,
     InitiatePaymentRequest,
     PaymentMethodType,
+    TransactionFeeRule,
     User,
 } from '../../types/banking';
 import { DEFAULT_CURRENCY, formatINR, toINR } from '../../utils/currency';
+import { calculateFeePreview } from '../../utils/feeCalculation';
 
 function newIdempotencyKey() {
     return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -36,6 +39,7 @@ export default function MakePayment() {
         new Map(),
     );
     const [accountsLoading, setAccountsLoading] = useState(true);
+    const [feeRules, setFeeRules] = useState<TransactionFeeRule[]>([]);
     const [form, setForm] = useState<FormState>({
         sourcePaymentMethodId: '',
         destinationAccountId: '',
@@ -77,6 +81,21 @@ export default function MakePayment() {
         };
     }, [user?.id]);
 
+    useEffect(() => {
+        let cancelled = false;
+        feeRulesApi
+            .getAll()
+            .then((rules) => {
+                if (!cancelled) setFeeRules(rules);
+            })
+            .catch(() => {
+                // Fee preview is best-effort; ignore failures here.
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     if (!user) {
         return (
             <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 shadow-sm">
@@ -105,6 +124,18 @@ export default function MakePayment() {
         if (type === 'NETBANKING') return 'NETBANKING';
         return 'UPI';
     }
+
+    const selectedSourceMethod = paymentMethods.find(
+        (m) => m.id === form.sourcePaymentMethodId,
+    );
+    const feePreview = useMemo(() => {
+        if (form.amount === '' || !selectedSourceMethod) return null;
+        return calculateFeePreview(
+            feeRules,
+            methodTypeToPaymentMethod(selectedSourceMethod.type),
+            Number(form.amount),
+        );
+    }, [feeRules, form.amount, selectedSourceMethod]);
 
     async function handleInitiate(e: React.FormEvent) {
         e.preventDefault();
@@ -212,7 +243,7 @@ export default function MakePayment() {
                 </div>
                 <div className="px-6 py-5">
                     <p className="text-sm text-slate-500">
-                        Amount
+                        Amount Sent
                     </p>
                     <p className="text-2xl font-bold text-slate-800">
                         {completed.amount.toFixed(2)} {completed.currency}
@@ -222,7 +253,31 @@ export default function MakePayment() {
                             ≈ {formatINR(toINR(completed.amount, completed.currency))}
                         </p>
                     )}
-                    <p className="mt-2 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+
+                    {completed.feeAmount != null && completed.netAmount != null && (
+                        <div className="mt-4 space-y-1 rounded-md border border-slate-200 bg-slate-50 p-3 text-left text-sm">
+                            <div className="flex justify-between text-slate-500">
+                                <span>Payment Amount</span>
+                                <span>
+                                    {completed.amount.toFixed(2)} {completed.currency}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-slate-500">
+                                <span>Transaction Fee</span>
+                                <span>
+                                    {completed.feeAmount.toFixed(2)} {completed.currency}
+                                </span>
+                            </div>
+                            <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-800">
+                                <span>Total Debited</span>
+                                <span>
+                                    {completed.netAmount.toFixed(2)} {completed.currency}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    <p className="mt-3 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                         {completed.status}
                     </p>
                     <button
@@ -432,6 +487,17 @@ export default function MakePayment() {
                     {form.amount !== '' && form.currency !== 'INR' && (
                         <p className="mt-1 text-xs text-slate-400">
                             ≈ {formatINR(toINR(Number(form.amount), form.currency))}
+                        </p>
+                    )}
+                    {feePreview && (
+                        <p className="mt-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-700">
+                            Fee: {feePreview.feeAmount.toFixed(2)}{' '}
+                            {form.currency} · You'll be debited{' '}
+                            <span className="font-semibold">
+                                {feePreview.totalDebit.toFixed(2)} {form.currency}
+                            </span>{' '}
+                            (recipient gets {Number(form.amount).toFixed(2)}{' '}
+                            {form.currency})
                         </p>
                     )}
                 </div>

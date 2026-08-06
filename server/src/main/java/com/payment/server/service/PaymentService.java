@@ -247,7 +247,7 @@ public class PaymentService {
                 feeResult.getNetAmount());
         historyRepository.save(id, STATUS_VALIDATED, STATUS_VALIDATED,
                 "Fee calculated: " + feeResult.getFeeAmount() + " (" + feeResult.getFeePercentage()
-                        + "%), net amount: " + feeResult.getNetAmount());
+                        + "%), total debit (amount + fee): " + feeResult.getNetAmount());
 
         // Simulated processing/transmission - see payment-system-v2-design.md
         // section 2 ("no real payment networks are integrated, simulate the
@@ -315,9 +315,12 @@ public class PaymentService {
      * (BankAccount.balance) are always tracked in INR, so amounts in the
      * payment's own currency are first dynamically converted to INR (via
      * CurrencyConversionService, USD-based cross rates) before adjusting
-     * balances. The destination receives the net amount (amount minus the
-     * bank's fee); the source pays the full gross amount. Accounts that
-     * don't resolve to a v2 BankAccount (e.g. legacy Customer-only
+     * balances. The sender bears the transaction fee on top of the payment
+     * amount, so the source is debited amount + fee (payment.getNetAmount(),
+     * which represents the sender's total debit - see FeeCalculationService),
+     * while the destination is always credited the exact payment amount the
+     * sender entered (payment.getAmount()), unaffected by the fee. Accounts
+     * that don't resolve to a v2 BankAccount (e.g. legacy Customer-only
      * accounts) are silently skipped since they have no tracked balance.
      */
     private void applyBalanceTransfer(Payment payment) {
@@ -329,18 +332,18 @@ public class PaymentService {
 
         BankAccount source = bankAccountRepository.findByAccountNumber(payment.getSourceAccount());
         if (source != null) {
-            BigDecimal debitInLedgerCurrency = currencyConversionService.toLedgerCurrency(payment.getAmount(),
-                    currency);
+            BigDecimal debitAmount = payment.getNetAmount() != null
+                    ? payment.getNetAmount()
+                    : payment.getAmount();
+            BigDecimal debitInLedgerCurrency = currencyConversionService.toLedgerCurrency(debitAmount, currency);
             BigDecimal newSourceBalance = source.getBalance().subtract(debitInLedgerCurrency);
             bankAccountRepository.updateBalance(source.getId(), newSourceBalance);
         }
 
         BankAccount destination = bankAccountRepository.findByAccountNumber(payment.getDestinationAccount());
         if (destination != null) {
-            BigDecimal creditAmount = payment.getNetAmount() != null
-                    ? payment.getNetAmount()
-                    : payment.getAmount();
-            BigDecimal creditInLedgerCurrency = currencyConversionService.toLedgerCurrency(creditAmount, currency);
+            BigDecimal creditInLedgerCurrency = currencyConversionService.toLedgerCurrency(payment.getAmount(),
+                    currency);
             BigDecimal newDestinationBalance = destination.getBalance().add(creditInLedgerCurrency);
             bankAccountRepository.updateBalance(destination.getId(), newDestinationBalance);
         }
