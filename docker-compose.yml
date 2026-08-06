@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME:-payment_processing}
+      MYSQL_DATABASE: ${DB_NAME}
     ports:
       - "3307:3306"
     volumes:
@@ -22,14 +22,12 @@ services:
     container_name: payment-server
     restart: unless-stopped
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-payment_processing}?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
-      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
       mysql:
         condition: service_healthy
-    # No external port published - only reachable internally via "server:8080"
-    # (see client/nginx.conf), which is proxied out through the client on 8082.
 
   client:
     build:
