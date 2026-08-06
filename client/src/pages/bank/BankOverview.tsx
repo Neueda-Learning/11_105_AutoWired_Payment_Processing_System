@@ -80,7 +80,7 @@ export default function BankOverview() {
             0,
         );
         const totalVolumeInr = payments.reduce(
-            (sum, p) => sum + toINR(p.amount, p.currency),
+            (sum, p) => sum + toINR(p.netAmount ?? p.amount, p.currency),
             0,
         );
         const last24h = payments.filter(
@@ -198,7 +198,11 @@ export default function BankOverview() {
                                         <p className="font-medium text-slate-700">
                                             #{p.id}{' '}
                                             <span className="text-slate-400">
-                                                · {formatWithInrEquivalent(p.amount, p.currency)}
+                                                ·{' '}
+                                                {formatWithInrEquivalent(
+                                                    p.netAmount ?? p.amount,
+                                                    p.currency,
+                                                )}
                                             </span>
                                         </p>
                                         <p className="mt-0.5 text-xs text-slate-400">
@@ -227,7 +231,7 @@ export default function BankOverview() {
                         </div>
                         <dl className="mt-4 space-y-3 text-sm">
                             <div className="flex items-center justify-between">
-                                <dt className="text-slate-500">Total Volume</dt>
+                                <dt className="text-slate-500">Total Volume (Debited)</dt>
                                 <dd className="font-semibold text-slate-800">
                                     {formatINR(insights.totalVolumeInr)}
                                 </dd>

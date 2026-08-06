@@ -42,6 +42,9 @@ public class Payment {
     private String bankName;
 
     // Dynamic transaction fee (see TransactionFeeRule / FeeCalculationService).
+    // netAmount is the sender's total debit: amount + feeAmount. The receiver
+    // always receives the exact "amount" - the fee is borne entirely by the
+    // sender on top of it.
     private BigDecimal feeAmount;
     private BigDecimal feePercentage;
     private BigDecimal netAmount;

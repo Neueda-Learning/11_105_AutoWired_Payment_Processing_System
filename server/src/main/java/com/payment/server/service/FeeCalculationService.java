@@ -49,6 +49,13 @@ public class FeeCalculationService {
             return feePercentage;
         }
 
+        /**
+         * Total amount debited from the sender, i.e. the payment amount
+         * plus the bank's transaction fee (amount + feeAmount). The
+         * receiver always gets the exact payment amount entered by the
+         * sender - the fee is an additional cost borne solely by the
+         * sender, not deducted from the receiver's credit.
+         */
         public BigDecimal getNetAmount() {
             return netAmount;
         }
@@ -80,7 +87,10 @@ public class FeeCalculationService {
         }
 
         feeAmount = feeAmount.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal netAmount = amount.subtract(feeAmount).setScale(2, RoundingMode.HALF_UP);
+        // The sender bears the fee on top of the payment amount; the receiver
+        // still gets the exact amount entered by the sender. netAmount here is
+        // the sender's total debit: amount + feeAmount.
+        BigDecimal netAmount = amount.add(feeAmount).setScale(2, RoundingMode.HALF_UP);
         return new FeeResult(feeAmount, feePercentage, netAmount);
     }
 
