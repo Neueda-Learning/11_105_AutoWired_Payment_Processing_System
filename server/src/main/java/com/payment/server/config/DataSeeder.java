@@ -49,11 +49,9 @@ public class DataSeeder implements CommandLineRunner {
         if (customerRepository.count() > 0) {
             return;
         }
-        customerRepository.save(new Customer("Alice Johnson", "ACC1001", "US"));
-        customerRepository.save(new Customer("Bob Smith", "ACC1002", "US"));
-        customerRepository.save(new Customer("Charlie Brown", "ACC1003", "GB"));
-        customerRepository.save(new Customer("Diana Prince", "ACC1004", "GB"));
-        customerRepository.save(new Customer("Ethan Hunt", "ACC1005", "IN"));
+        customerRepository.save(new Customer("Vinay Patel", "ACC1001", "US"));
+        customerRepository.save(new Customer("Priyanshu Bariyar", "ACC1002", "PAK"));
+        customerRepository.save(new Customer("Raghav Lathi", "ACC1003", "IN"));
     }
 
     private void seedErrorCodes() {
@@ -126,11 +124,9 @@ public class DataSeeder implements CommandLineRunner {
         if (userRepository.count() > 0) {
             return;
         }
-        seedUserWithAccount("Alice Johnson", "alice@example.com", "ACC1001", "US");
-        seedUserWithAccount("Bob Smith", "bob@example.com", "ACC1002", "US");
-        seedUserWithAccount("Charlie Brown", "charlie@example.com", "ACC1003", "GB");
-        seedUserWithAccount("Diana Prince", "diana@example.com", "ACC1004", "GB");
-        seedUserWithAccount("Ethan Hunt", "ethan@example.com", "ACC1005", "IN");
+        seedUserWithAccount("Vinay Patel", "vinay@example.com", "ACC1001", "US");
+        seedUserWithAccount("Priyanshu Bariyar", "priyanshu@example.com", "ACC1002", "PAK");
+        seedUserWithAccount("Raghav Lathi", "raghav@example.com", "ACC1003", "IN");
     }
 
     private void seedUserWithAccount(String fullName, String email, String accountNumber, String country) {
@@ -143,8 +139,8 @@ public class DataSeeder implements CommandLineRunner {
         BankAccount account = new BankAccount();
         account.setUserId(user.getId());
         account.setAccountNumber(accountNumber);
-        account.setBankName("Demo Bank " + country);
-        account.setBalance(new BigDecimal("100000.00"));
+        account.setBankName("Bank of " + country);
+        account.setBalance(new BigDecimal("300000.00"));
         account.setPrimary(true);
         account.setStatus(BankAccount.STATUS_ACTIVE);
         bankAccountRepository.save(account);

@@ -4,8 +4,8 @@ import { useUserSession } from '../context/UserContext';
 const NAV_ITEMS = [
     { to: '/user/pay', label: 'Make a Payment', icon: '📤' },
     { to: '/user/payments', label: 'My Payments', icon: '📜' },
-    { to: '/user/accounts', label: 'Bank Accounts', icon: '🏦' },
     { to: '/user/methods', label: 'Payment Methods', icon: '💳' },
+    { to: '/user/accounts', label: 'Bank Accounts', icon: '🏦' },
     { to: '/user', label: 'Profile', icon: '👤', end: true },
 
 ];
@@ -60,7 +60,7 @@ export default function UserLayout() {
                                 Payments Platform
                             </p>
                             <h1 className="text-base font-bold text-white">
-                                Customer Portal
+                                AutoWired Customer Portal
                             </h1>
                         </div>
                     </div>
