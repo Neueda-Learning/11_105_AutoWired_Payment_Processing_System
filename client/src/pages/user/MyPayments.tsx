@@ -38,11 +38,18 @@ export default function MyPayments() {
         );
     }
 
-    const mine = payments.filter(
-        (p) =>
-            (p as Payment & { payerUserId?: number }).payerUserId ===
-            user.id,
-    );
+    const mine = payments.filter((p) => {
+        const withUsers = p as Payment & {
+            payerUserId?: number;
+            payeeUserId?: number;
+        };
+        return (
+            withUsers.payerUserId === user.id || withUsers.payeeUserId === user.id
+        );
+    });
+
+    const isSent = (p: Payment) =>
+        (p as Payment & { payerUserId?: number }).payerUserId === user.id;
 
     const completedCount = mine.filter((p) => p.status === 'COMPLETED').length;
     const pendingCount = mine.filter(
@@ -118,11 +125,11 @@ export default function MyPayments() {
                                             <span className="block text-xs text-slate-400">
                                                 {new Date(p.createdAt).toLocaleString()}
                                             </span>
-                                        </span>
-                                        <StatusBadge status={p.status} />
-                                    </button>
-                                </li>
-                            ))}
+                                            <StatusBadge status={p.status} />
+                                        </button>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </div>
