@@ -78,7 +78,7 @@ export default function PaymentList({
                     cmp = a.id - b.id;
                     break;
                 case 'amount':
-                    cmp = a.amount - b.amount;
+                    cmp = (a.netAmount ?? a.amount) - (b.netAmount ?? b.amount);
                     break;
                 case 'status':
                     cmp = a.status.localeCompare(b.status);
@@ -164,7 +164,7 @@ export default function PaymentList({
                                 className="cursor-pointer select-none px-4 py-2.5 hover:text-slate-700"
                                 onClick={() => toggleSort('amount')}
                             >
-                                Amount{sortKey === 'amount' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
+                                Total Debited{sortKey === 'amount' ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}
                             </th>
                             <th
                                 className="cursor-pointer select-none px-4 py-2.5 hover:text-slate-700"
@@ -192,7 +192,10 @@ export default function PaymentList({
                                     #{p.id}
                                 </td>
                                 <td className="px-4 py-2.5 text-slate-600">
-                                    {formatWithInrEquivalent(p.amount, p.currency)}
+                                    {formatWithInrEquivalent(
+                                        p.netAmount ?? p.amount,
+                                        p.currency,
+                                    )}
                                 </td>
                                 <td className="px-4 py-2.5">
                                     <StatusBadge status={p.status} />

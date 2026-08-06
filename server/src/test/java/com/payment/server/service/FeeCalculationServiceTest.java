@@ -40,7 +40,7 @@ class FeeCalculationServiceTest {
 
         assertEquals(new BigDecimal("20.00"), result.getFeeAmount());
         assertEquals(new BigDecimal("2.0"), result.getFeePercentage());
-        assertEquals(new BigDecimal("980.00"), result.getNetAmount());
+        assertEquals(new BigDecimal("1020.00"), result.getNetAmount());
     }
 
     @Test
@@ -58,7 +58,7 @@ class FeeCalculationServiceTest {
         FeeResult result = service.calculateFee("CREDIT_CARD", new BigDecimal("1000.00"));
 
         assertEquals(new BigDecimal("25.00"), result.getFeeAmount());
-        assertEquals(new BigDecimal("975.00"), result.getNetAmount());
+        assertEquals(new BigDecimal("1025.00"), result.getNetAmount());
     }
 
     @Test
@@ -77,7 +77,7 @@ class FeeCalculationServiceTest {
         FeeResult result = service.calculateFee("UPI", new BigDecimal("100.00"));
 
         assertEquals(new BigDecimal("10.00"), result.getFeeAmount());
-        assertEquals(new BigDecimal("90.00"), result.getNetAmount());
+        assertEquals(new BigDecimal("110.00"), result.getNetAmount());
     }
 
     @Test
@@ -96,7 +96,7 @@ class FeeCalculationServiceTest {
         FeeResult result = service.calculateFee("UPI", new BigDecimal("5000.00"));
 
         assertEquals(new BigDecimal("50.00"), result.getFeeAmount());
-        assertEquals(new BigDecimal("4950.00"), result.getNetAmount());
+        assertEquals(new BigDecimal("5050.00"), result.getNetAmount());
     }
 
     @Test
@@ -110,7 +110,7 @@ class FeeCalculationServiceTest {
 
         assertEquals(new BigDecimal("10.00"), result.getFeeAmount());
         assertEquals(new BigDecimal("1.0"), result.getFeePercentage());
-        assertEquals(new BigDecimal("990.00"), result.getNetAmount());
+        assertEquals(new BigDecimal("1010.00"), result.getNetAmount());
     }
 
     @Test
@@ -123,7 +123,7 @@ class FeeCalculationServiceTest {
         FeeResult result = service.calculateFee("UPI", new BigDecimal("100000.00"));
 
         assertEquals(new BigDecimal("500.00"), result.getFeeAmount());
-        assertEquals(new BigDecimal("99500.00"), result.getNetAmount());
+        assertEquals(new BigDecimal("100500.00"), result.getNetAmount());
     }
 
     @Test

@@ -60,7 +60,7 @@ export default function UserLayout() {
                                 Payments Platform
                             </p>
                             <h1 className="text-base font-bold text-white">
-                                AutoWired Customer Portal
+                                Customer Portal
                             </h1>
                         </div>
                     </div>

@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AxiosError } from 'axios';
 import { paymentsApi } from '../api/paymentsApi';
+import { feeRulesApi } from '../api/feeRulesApi';
+import type { TransactionFeeRule } from '../types/banking';
 import type {
     ApiErrorResponse,
     CreatePaymentRequest,
     Payment,
     PaymentMethod,
 } from '../types/payment';
+import { calculateFeePreview } from '../utils/feeCalculation';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR'];
 const BANKS = [
@@ -54,6 +57,27 @@ export default function PaymentForm({ onCreated }: Props) {
     const [form, setForm] = useState<CreatePaymentRequest>(emptyForm());
     const [errors, setErrors] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [feeRules, setFeeRules] = useState<TransactionFeeRule[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+        feeRulesApi
+            .getAll()
+            .then((rules) => {
+                if (!cancelled) setFeeRules(rules);
+            })
+            .catch(() => {
+                // Fee preview is best-effort; ignore failures here.
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const feePreview = useMemo(
+        () => calculateFeePreview(feeRules, form.paymentMethod, form.amount),
+        [feeRules, form.paymentMethod, form.amount],
+    );
 
     function update<K extends keyof CreatePaymentRequest>(
         key: K,
@@ -165,6 +189,16 @@ export default function PaymentForm({ onCreated }: Props) {
                         onChange={(e) => update('amount', Number(e.target.value))}
                         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
                     />
+                    {feePreview && (
+                        <p className="mt-1.5 rounded-md bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700">
+                            Fee: {feePreview.feeAmount.toFixed(2)}{' '}
+                            {form.currency} · Sender debited{' '}
+                            <span className="font-semibold">
+                                {feePreview.totalDebit.toFixed(2)} {form.currency}
+                            </span>{' '}
+                            (recipient gets {form.amount.toFixed(2)} {form.currency})
+                        </p>
+                    )}
                 </div>
                 <div>
                     <label className="mb-1 block text-sm font-medium text-slate-600">
