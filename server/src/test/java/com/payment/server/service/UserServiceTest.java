@@ -315,8 +315,10 @@ class UserServiceTest {
 
         CreatePaymentMethodRequest request = new CreatePaymentMethodRequest();
         request.setBankAccountId(10);
-        request.setType("CREDIT_CARD");
-        request.setCardNumber("4111-1111-1111-1234");
+        request.setType("CARD");
+        request.setCardNumber("4532015112830366"); // Luhn-valid Visa test number ending in 0366
+        request.setCardHolderName("Test User");
+        request.setCardExpiry("12/2099");
         request.setDefault(false);
 
         when(userRepository.findById(1)).thenReturn(user);
@@ -324,7 +326,7 @@ class UserServiceTest {
 
         PaymentMethod result = service.addPaymentMethod(1, request);
 
-        assertEquals("1234", result.getCardLast4());
+        assertEquals("0366", result.getCardLast4());
         assertNotNull(result.getCardToken());
     }
 }

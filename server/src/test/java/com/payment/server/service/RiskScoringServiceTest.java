@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,9 +23,12 @@ class RiskScoringServiceTest {
     @Mock
     private PaymentRepository paymentRepository;
 
+    // Fixed noon clock so odd-hours rule (00:00-05:00) never fires in tests
+    private final Clock noonClock = Clock.fixed(Instant.parse("2026-01-01T12:00:00Z"), ZoneOffset.UTC);
+
     @Test
     void scorePaymentReturnsZeroForLowRiskTransaction() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("1000.00")); // Below high amount threshold
@@ -42,7 +48,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentAdds40PointsForHighAmount() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("50000.00")); // At high amount threshold
@@ -58,7 +64,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentAdds40PointsForHighVelocity() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("1000.00"));
@@ -75,7 +81,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentAdds30PointsForSuddenSpike() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("6000.00")); // 3x the average
@@ -94,7 +100,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentCombinesMultipleRiskFactors() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("60000.00")); // High amount (40 points)
@@ -116,7 +122,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentIgnoresSpikeFlagWhenNoPayerUserId() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("100000.00"));
@@ -135,7 +141,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentIgnoresSpikeFlagWhenAverageIsZero() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("5000.00"));
@@ -155,7 +161,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentIgnoresSpikeFlagWhenAverageIsNull() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("5000.00"));
@@ -174,7 +180,7 @@ class RiskScoringServiceTest {
 
     @Test
     void scorePaymentDoesNotFlagWhenBelowSpikeThreshold() {
-        RiskScoringService service = new RiskScoringService(paymentRepository);
+        RiskScoringService service = new RiskScoringService(paymentRepository, noonClock);
 
         Payment payment = new Payment();
         payment.setAmount(new BigDecimal("5000.00")); // Less than 3x average

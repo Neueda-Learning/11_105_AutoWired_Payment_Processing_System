@@ -1,8 +1,10 @@
 package com.payment.server.service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDateTime;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.payment.server.model.Payment;
@@ -20,9 +22,16 @@ public class RiskScoringService {
     private static final BigDecimal SPIKE_MULTIPLIER = new BigDecimal("3");
 
     private final PaymentRepository paymentRepository;
+    private final Clock clock;
 
+    @Autowired
     public RiskScoringService(PaymentRepository paymentRepository) {
+        this(paymentRepository, Clock.systemUTC());
+    }
+
+    public RiskScoringService(PaymentRepository paymentRepository, Clock clock) {
         this.paymentRepository = paymentRepository;
+        this.clock = clock;
     }
 
     public int scorePayment(Payment payment, int currentPaymentId) {
@@ -34,7 +43,7 @@ public class RiskScoringService {
         }
 
         // Odd hours rule
-        int hour = LocalDateTime.now().getHour();
+        int hour = LocalDateTime.now(clock).getHour();
         if (hour >= ODD_HOUR_START && hour <= ODD_HOUR_END) {
             score += 20;
         }

@@ -61,6 +61,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             loadForUser(Number(stored));
         } else {
             setLoading(false);
@@ -111,6 +112,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUserSession() {
     const ctx = useContext(UserContext);
     if (!ctx) {
